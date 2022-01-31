@@ -1,5 +1,5 @@
 /**
-CarteraBridgeNative
+CarteraBridgeNativeSingle
 Proceso para sincronizar legacy_cartera con C_Invoice y C_Payment
 Solo para legacy_cartera de tipo native
 20210616 - First version
@@ -24,6 +24,7 @@ import org.compiere.util.CLogger;
 import java.util.logging.Level;
 import org.compiere.process.ProcessInfoParameter;
 import org.adempiere.exceptions.AdempiereException;
+import org.compiere.process.DocAction;
 
 CLogger log = CLogger.getCLogger(GenericPO.class);
 // PO.setCrossTenantSafe();
@@ -137,6 +138,8 @@ for(GenericPO car in legacyCartera){
         iLineInteres.set_ValueOfColumn("createdby", car.getCreatedBy());
 		iLineInteres.set_ValueOfColumn("updatedby", car.getUpdatedBy());
         iLineInteres.save(A_TrxName);
+        
+        invoice.processIt(DocAction.ACTION_Complete);
 
         // Let's create a payment
         int Payment_C_DocType_ID = 1000049;
@@ -155,12 +158,14 @@ for(GenericPO car in legacyCartera){
         mp.set_ValueOfColumn("createdby", car.getCreatedBy());
 		mp.set_ValueOfColumn("updatedby", car.getUpdatedBy());
         mp.save(A_TrxName);
+        mp.processIt(DocAction.ACTION_Complete);
 
         // Update current legacy cartera
         // car.set_ValueOfColumn("ad_org_id", org.get_ID());
         car.set_ValueOfColumn("synced", "Y");
         car.set_ValueOfColumn("local_id", invoice.get_ID());
         car.set_ValueOfColumn("C_BPartner_ID", bp.get_ID());
+        car.set_ValueOfColumn("payment_id", mp.get_ID());
         // car.setAD_Org_ID( org.get_ID() );
         car.save(A_TrxName);
 

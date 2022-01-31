@@ -1,5 +1,6 @@
 /**
 Proceso para sincronizar legacy_cartera con C_Invoice
+20210822 - Bank Account only for Sucursal
 20210725 - Org is a parameter now
 20210421 - First version
 **/
@@ -51,7 +52,7 @@ for(GenericPO car in legacyCartera){
     BigDecimal legacy_cartera_id = car.get_Value("legacy_cartera_id");
     /* if(workNumber==10) 
         break; */
-    System.out.println("Trying to migrate LegacyCartera [" + legacy_cartera_id.toString()  + "]");
+    System.out.println("[" + workNumber + " of "  + legacyCartera.size() + "]" + "Trying to migrate LegacyCartera [" + legacy_cartera_id.toString()  + "]");
     StringBuilder sb = new StringBuilder();
     org = MOrg.get(A_Ctx, car.get_ValueAsInt("AD_Org_ID"));
     String orgKey = org.getDescription();
@@ -139,7 +140,7 @@ for(GenericPO car in legacyCartera){
         iLineInteres.save(A_TrxName);
 
         // Let's create a payment
-        MBankAccount bac = new Query(A_Ctx, "C_BankAccount", "AD_Org_ID = ? ", A_TrxName)
+        MBankAccount bac = new Query(A_Ctx, "C_BankAccount", "AD_Org_ID = ? and description = 'SUCURSAL' ", A_TrxName)
         .setParameters([ orgid ])
         .first();
 

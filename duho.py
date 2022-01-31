@@ -16,11 +16,13 @@ def migrarCobros(ad_org_id):
     :verdadero, :procesa, :trabajo, :quien, :operado, :rutaimg, \
     :creadoel, :creadopor, :creadoen, :modificadoel, :modificadopor, :modificadoen, \
     :id_vendedor, :ad_org_id, :ad_client_id, 'Y', now(), 0, \
-    now(), 0, 'N', 'migrated', 'Y', gen_random_uuid () ); """
-    total_cobros = dbtools.oS.execute('select count(*) from cobros where trabajo >= CAST(\'07/25/2021\' as date) ').scalar()
+    now(), 0, 'N', 'migrated', 'Y',      ); """
+    # total_cobros = dbtools.oS.execute('select count(*) from cobros where trabajo >= CAST(\'07/25/2021\' as date) ').scalar()
+    total_cobros = dbtools.oS.execute('select count(*) from cobros where abono > 0').scalar()
     max_id = dbtools.dS.execute('select coalesce(max(legacy_cobro_id), 10000000) from legacy_cobro').scalar()
     print ("Cobros a verif: " + str(total_cobros)) 
-    rcob = dbtools.oS.execute("select * from cobros where trabajo >= CAST('07/25/2021' as date) order by NEWID()").fetchall()
+    # rcob = dbtools.oS.execute("select * from cobros where trabajo >= CAST('07/25/2021' as date) order by NEWID()").fetchall()
+    rcob = dbtools.oS.execute("select * from cobros where abono > 0 order by NEWID()").fetchall()
     counter = 0
     legacy_cobro_id = max_id + 1
     for row in rcob:
@@ -46,7 +48,15 @@ def migrarCobros(ad_org_id):
             print (str(counter) + " NewID [" + str(legacy_cobro_id) + "] Insertando cobro " + str(row["id_cobro"]) + " para Org: " + str(ad_org_id) + " de " + str(total_cobros))
             legacy_cobro_id = legacy_cobro_id + 1
         else:
-            print (str(counter) + " Omitiendo cobro " + str(row["id_cobro"]) + " para Org: " + str(ad_org_id) + " de " + str(total_cobros))
+            updateSQL = ( "UPDATE legacy_cobro set abono = :abono, origen = 'migrated' "
+            + " where id_cobro = :id_cobro and ad_org_id = :ad_org_id " )            
+            paramsUpdate = { 
+                "abono" : row["abono"],
+                "id_cobro" : row["id_cobro"],
+                "ad_org_id" : ad_org_id
+            }
+            dbtools.dS.execute(text(updateSQL), paramsUpdate)
+            print (str(counter) + " Actualizando cobro " + str(row["id_cobro"]) + " para Org: " + str(ad_org_id) + " de " + str(total_cobros))
     dbtools.dS.commit()
     print ("Verificados los Cobros")
 
@@ -82,7 +92,7 @@ def migrarCxC(ad_org_id):
     total_carteras = dbtools.oS.execute('select count(*) from cartera   ').scalar()
     max_id = dbtools.dS.execute('select coalesce(max(legacy_cartera_id), 10000000) from legacy_cartera').scalar()
     print ("Cartera a verif: " + str(total_carteras)) 
-    rcart = dbtools.oS.execute("select * from cartera  order by NEWID()").fetchall()
+    rcart = dbtools.oS.execute("select * from cartera order by NEWID()").fetchall()
     counter = 0
     legacy_cartera_id = max_id + 1
     for row in rcart:

@@ -2,6 +2,8 @@
 Proceso para cancelar Cobro desde Legacy_Cobro
 @Name: CancelarCobroLegacy
 groovy:CancelarCobroLegacy
+20210827 - Actualizar Saldo de Cartera al Cancelar Cobro
+20210813 - Change status of Voided Payment
 20210708 - first version
 **/
 
@@ -26,6 +28,7 @@ CLogger log = CLogger.getCLogger(GenericPO.class);
 MOrg org = null;
 int cobroid = 0;
 int localid = 0;
+BigDecimal carteraid;
 
 ProcessInfoParameter[] para = A_Parameter;
 for (int i = 0; i < para.length; i++) {
@@ -50,6 +53,7 @@ if(cobroPO==null || cobroid==0){
 String resultString = "";
 org = MOrg.get(A_Ctx, cobroPO.getAD_Org_ID() );
 localid = cobroPO.get_ValueAsInt("local_id");
+carteraid = (BigDecimal) cobroPO.get_Value("id_cartera");
 cobroPO.set_ValueOfColumn("abono", BigDecimal.ZERO);
 cobroPO.save(A_TrxName);
 resultString = "Cobro en CERO. " + cobroid.toString();
@@ -62,8 +66,11 @@ if(!(localid==null || localid==0)){
         String docNo = mp.getDocumentNo();
         if("CO".equals(mp.getDocStatus())) {
             mp.processIt(DocAction.ACTION_Reverse_Correct);
+            mp.setDocStatus("VO");
+            mp.save();
             resultString = resultString + " | Cobro revertido " + docNo ;
             A_ProcessInfo.addLog(0,null,null,"Cobro revertido " + docNo);
+            // => Poner status ANULADO (check Documentation)
         }
         
         if("DR".equals(mp.getDocStatus())) {
@@ -71,6 +78,8 @@ if(!(localid==null || localid==0)){
             resultString = resultString + " | Cobro eliminado " + docNo ;
             A_ProcessInfo.addLog(0,null,null,"Cobro eliminado " + docNo );
         }
+        // String sqlUpdateSaldoCartera = "select duho_updatesaldo_cartera(" + carteraid.toString() +  ")";
+        // DB.executeUpdate(sqlUpdateSaldoCartera, A_TrxName);
     }
 }
 

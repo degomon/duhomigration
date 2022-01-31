@@ -2,6 +2,7 @@
 CarteraBridgeNative
 Proceso para sincronizar legacy_cartera con C_Invoice y C_Payment
 Solo para legacy_cartera de tipo native
+20210821 - Autocompleta
 20210616 - First version
 **/
 
@@ -24,6 +25,7 @@ import org.compiere.util.CLogger;
 import java.util.logging.Level;
 import org.compiere.process.ProcessInfoParameter;
 import org.adempiere.exceptions.AdempiereException;
+import org.compiere.process.DocAction;
 
 CLogger log = CLogger.getCLogger(GenericPO.class);
 // PO.setCrossTenantSafe();
@@ -55,7 +57,7 @@ List<GenericPO> legacyCartera = new Query(A_Ctx, "legacy_cartera",
 
 for(GenericPO car in legacyCartera){
     workNumber = workNumber + 1;
-    System.out.println("Entra a " + workNumber + " BPID:> " + car.get_Value("c_bpartner_id"));
+    System.out.println("CarteraBridgeNative:: Procesando  [" + workNumber + " de " + legacyCartera.size() + "] ==> BPID:> " + car.get_Value("c_bpartner_id"));    
     /* if(workNumber==4) 
         break; */
     StringBuilder sb = new StringBuilder();
@@ -138,6 +140,8 @@ for(GenericPO car in legacyCartera){
 		iLineInteres.set_ValueOfColumn("updatedby", car.getUpdatedBy());
         iLineInteres.save(A_TrxName);
 
+        invoice.processIt(DocAction.ACTION_Complete);
+
         // Let's create a payment
         int Payment_C_DocType_ID = 1000049;
         MPayment mp = new MPayment(A_Ctx, 0, A_TrxName);
@@ -155,18 +159,20 @@ for(GenericPO car in legacyCartera){
         mp.set_ValueOfColumn("createdby", car.getCreatedBy());
 		mp.set_ValueOfColumn("updatedby", car.getUpdatedBy());
         mp.save(A_TrxName);
+        mp.processIt(DocAction.ACTION_Complete);
 
         // Update current legacy cartera
         // car.set_ValueOfColumn("ad_org_id", org.get_ID());
         car.set_ValueOfColumn("synced", "Y");
         car.set_ValueOfColumn("local_id", invoice.get_ID());
         car.set_ValueOfColumn("C_BPartner_ID", bp.get_ID());
+        car.set_ValueOfColumn("payment_id", mp.get_ID());
         // car.setAD_Org_ID( org.get_ID() );
         car.save(A_TrxName);
 
-        log.info("Invoice created: " + invoice.getDocumentNo() + " No: " + workNumber);
+        log.info("CarteraBridgeNative:: Invoice created: " + invoice.getDocumentNo() + " No: " + workNumber);
 
-        A_ProcessInfo.addLog(0,null,null,"No. " + workNumber.toString()
+        A_ProcessInfo.addLog(0,null,null,"CarteraBridgeNative:: No. " + workNumber.toString()
         + " Cartera: " + car.get_ID() 
         + " Invoice: "  + invoice.getDocumentNo() 
         + " Payment: " + mp.getDocumentNo() 
@@ -178,4 +184,4 @@ for(GenericPO car in legacyCartera){
     
 }
 // PO.clearCrossTenantSafe();
-result = "Se migraron " + legacyCartera.size() + " datos de LegacyCartera a C_Invoice";
+result = "CarteraBridgeNative:: Se migraron " + legacyCartera.size() + " datos de LegacyCartera a C_Invoice";

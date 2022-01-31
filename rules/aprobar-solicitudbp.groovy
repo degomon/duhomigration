@@ -2,7 +2,8 @@
 Proceso para aprobar una Solicitud de Cliente vía web
 a partir de cv_solicitudbp
 @Name: AprobarSolicitudBP
-20210418 - Bridge from legacy_cliente to C_BPartner
+20210817 - Verificar que cédula no exista
+20210730 - Bridge from legacy_cliente to C_BPartner
 **/
 
 import org.compiere.model.MTable;
@@ -48,6 +49,7 @@ if(solicitudBP==null || solicitudid==0){
     return;
 }
 
+
 org = MOrg.get(A_Ctx, solicitudBP.getAD_Org_ID() );
 city = new Query(A_Ctx,"C_City", "name ilike ?", A_TrxName)
     				.setParameters([ org.getInfo().getFax() ])
@@ -64,8 +66,18 @@ int idrubro = solicitudBP.get_ValueAsInt("idrubro");
 BigDecimal monto = (BigDecimal) solicitudBP.get_Value("monto");
 String procesado = solicitudBP.get_ValueAsString("synced");
 
+// Ver si el BP existe por Cédula
+MBPartner bpCed = new Query(A_Ctx, "C_BPartner", "taxid = ?", A_TrxName)
+.setParameters([solicitudBP.get_ValueAsString("cedula")])
+.first();
 
 System.out.println("Procesado: " + procesado);
+
+if(null!=bpCed){
+    result = "ERROR: La cédula " + cedula + " ya está registrada con el nombre: " + bpCed.getName();
+    return "ERROR: La cédula " + cedula + " ya está registrada con el nombre: " + bpCed.getName();
+}
+ 
 if("Y".equals(procesado)){
     result = "ERROR: Esta solicitud ya fue procesada anteriormente.";
     return "ERROR: Esta solicitud ya fue procesada anteriormente.";

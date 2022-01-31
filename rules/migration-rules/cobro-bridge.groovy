@@ -81,6 +81,7 @@ String sqlCount = " select count(cob.*) " +
     ResultSet rs = psmt.executeQuery();
     while (rs.next()) {
         workNumber = workNumber+1;
+        // if(workNumber==11) return "OK - 10 Test completed";
         System.out.println("Migrating Cobro #" + workNumber.toString() + " of " + countRecs.toString() );
         GenericPO cob = new Query(A_Ctx, "legacy_cobro", "legacy_cobro_id = ?", A_TrxName)
                 .setParameters(rs.getInt("legacy_cobro_id"))
@@ -116,7 +117,7 @@ String sqlCount = " select count(cob.*) " +
             cob.set_ValueOfColumn("c_bpartner_id", bpid);
             cob.set_ValueOfColumn("local_id", localId);
             cob.set_ValueOfColumn("synced", "Y");
-            cob.set_ValueOfColumn("id_cartera", rs.getInt("legacy_cartera_id"));
+            cob.set_ValueOfColumn("id_cartera", rs.getBigDecimal("legacy_cartera_id"));
             cob.set_ValueOfColumn("old_cartera", rs.getBigDecimal("id_cartera"));
             cob.save(A_TrxName);
 

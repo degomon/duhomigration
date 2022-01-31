@@ -95,6 +95,7 @@ for(GenericPO cob in legacyCobroList){
 		mp.set_ValueOfColumn("updatedby", cob.getUpdatedBy());
         mp.setC_Invoice_ID(inv.get_ID());
         mp.save(A_TrxName); 
+        mp.processIt(DocAction.ACTION_Complete);
 
         // Update current legacy cartera
         // car.set_ValueOfColumn("ad_org_id", org.get_ID());
