@@ -2,6 +2,7 @@
 CarteraBridgeNative
 Proceso para sincronizar legacy_cartera con C_Invoice y C_Payment
 Solo para legacy_cartera de tipo native
+20220201 - payment_id field added
 20210821 - Autocompleta
 20210616 - First version
 **/

@@ -3,6 +3,7 @@ CarteraBridgeNativeAutocomplete
 Proceso para sincronizar legacy_cartera con C_Invoice y C_Payment
 con autocompletado
 Solo para legacy_cartera de tipo native
+20220201 - payment_id field added
 20210812 - First version
 Rule: groovy:CarteraBridgeNativeAutocomplete
 Class: @script:groovy:CarteraBridgeNativeAutocomplete
