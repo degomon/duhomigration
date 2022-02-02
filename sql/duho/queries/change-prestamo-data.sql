@@ -25,7 +25,8 @@ BEGIN
 		update legacy_cartera 
 			set dias_cre = nuevoplazo, cuota = nuevacuota, 
 			monto = nuevomonto, valorinteres = nuevovalorinteres,
-			montototal = nuevomontototal, tasa = nuevointeres 
+			montototal = nuevomontototal, tasa = nuevointeres,
+			minilog = coalesce(minilog,'') || '\nUpdated with amt: ' || nuevomonto::character varying
 			where legacy_cartera_id = carteraid;
 		if(cartera.local_id is not null) then
 			select * from c_invoice where c_invoice_id = cartera.local_id into invoice;
@@ -38,12 +39,12 @@ BEGIN
 				
 				-- Actualizar desembolso
 				update c_payment 
-					set payamt = nuevomonto,
-					minilog = coalesce(minilog,'') || '\nUpdated with amt: ' + nuevomonto
+					set payamt = nuevomonto
 					where c_payment_id = cartera.payment_id;  
+				perform duho_updatesaldo_cartera(carteraid);
+				return 1;
 			end if;
 		end if;
-		perform duho_updatesaldo_cartera(carteraid);
 	end if;
-	
+	return 0;
 END $BODY$;
