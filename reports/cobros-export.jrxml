@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="cobros-export" language="groovy" pageWidth="792" pageHeight="612" orientation="Landscape" columnWidth="752" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" isIgnorePagination="true" uuid="6adf4c90-96b0-4d2d-93a7-219766ef4a6c">
+	<property name="ireport.zoom" value="1.0"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<parameter name="fecha" class="java.util.Date">
+		<defaultValueExpression><![CDATA[]]></defaultValueExpression>
+	</parameter>
+	<parameter name="org" class="java.math.BigDecimal">
+		<defaultValueExpression><![CDATA[]]></defaultValueExpression>
+	</parameter>
+	<queryString>
+		<![CDATA[select org.name as orgname,
+ru.name as nombreruta,
+cob.operacion::date as fecha,
+cob.operacion::time as hora,
+bp.value as codtercero, bp.name as tercero,
+bp.c_bpartner_id,
+cob.abono,
+usr.name as creadopor,
+split_part(cob.coords, '|',1) as latitud,
+split_part(cob.coords, '|',2) as longitud,
+'https://maps.google.com/?q=' || split_part(cob.coords, '|',1) || ',' || split_part(cob.coords, '|',2) as coordenadaLink
+
+from legacy_cobro cob
+inner join c_bpartner bp on cob.c_bpartner_id = bp.c_bpartner_id
+left join ad_user usr on cob.createdby = usr.ad_user_id
+left join legacy_cartera car on cob.id_cartera = car.legacy_cartera_id
+left join cv_ruta ru on bp.cv_ruta_id = ru.cv_ruta_id
+inner join ad_org org on cob.ad_org_id = org.ad_org_id
+where
+operacion::date = $P{fecha}::date
+
+ -- and cob.synced = 'N'
+ and  cob.origen = 'native'
+ and cob.abono > 0
+and cob.ad_org_id = $P{org}
+order by org.name, ru.name desc, cob.operacion asc]]>
+	</queryString>
+	<field name="orgname" class="java.lang.String"/>
+	<field name="nombreruta" class="java.lang.String"/>
+	<field name="fecha" class="java.sql.Date"/>
+	<field name="hora" class="java.sql.Time"/>
+	<field name="codtercero" class="java.lang.String"/>
+	<field name="tercero" class="java.lang.String"/>
+	<field name="c_bpartner_id" class="java.math.BigDecimal"/>
+	<field name="abono" class="java.math.BigDecimal"/>
+	<field name="creadopor" class="java.lang.String"/>
+	<field name="latitud" class="java.lang.String"/>
+	<field name="longitud" class="java.lang.String"/>
+	<field name="coordenadalink" class="java.lang.String"/>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<columnHeader>
+		<band height="23">
+			<staticText>
+				<reportElement x="0" y="0" width="68" height="20" uuid="0a239e39-63d6-4d33-8449-d0b3393835cd"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[orgname]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="68" y="0" width="68" height="20" uuid="26dc25d9-1238-4658-b371-a8bf831b1b4c"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[nombreruta]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="136" y="0" width="51" height="20" uuid="29bfe724-35e3-4ede-b403-0c0702bfbacb"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[fecha]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="187" y="0" width="52" height="20" uuid="34ea4942-a70c-4abd-adda-60251632cd50"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[hora]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="239" y="0" width="84" height="20" uuid="df5ed649-a799-4819-bade-57d90712c079"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[codtercero]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="323" y="0" width="145" height="20" uuid="467c9a6e-8f38-44e7-98f2-791a587b5291"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[tercero]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="468" y="0" width="68" height="20" uuid="c3ee72b0-160b-4b22-8f8b-a36889b0a5f7"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[c_bpartner_id]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="536" y="0" width="68" height="20" uuid="8d5ebdc6-6a61-40c7-ab17-1b793f5dbebe"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[abono]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="604" y="0" width="68" height="20" uuid="4c6cef6a-7c38-4be4-a546-67f7dc98593d"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[creadopor]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="672" y="0" width="40" height="20" uuid="dd64d794-46af-40e1-9b99-d3b26258d88e"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[latitud]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="712" y="0" width="40" height="20" uuid="695f9e37-5a1d-4652-ac78-1faa805aa423"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[longitud]]></text>
+			</staticText>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="14" splitType="Stretch">
+			<textField>
+				<reportElement x="0" y="0" width="68" height="14" uuid="9d9b900a-0d38-4f7d-9f3c-a908ca0fad45"/>
+				<textElement>
+					<font size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{orgname}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="68" y="0" width="68" height="14" uuid="12044ed3-05b7-44f9-aa4e-4db23976ede3"/>
+				<textElement>
+					<font size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{nombreruta}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="136" y="0" width="51" height="14" uuid="05acdd75-eee2-4c6d-828a-bdc935de1c53"/>
+				<textElement>
+					<font size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{fecha}]]></textFieldExpression>
+			</textField>
+			<textField pattern="h.mm a">
+				<reportElement x="187" y="0" width="52" height="14" uuid="4e8dd90f-8270-4cfa-a79d-1cc2b9653bd9"/>
+				<textElement>
+					<font size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{hora}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="239" y="0" width="84" height="14" uuid="dba72fa3-fd8f-4e8c-9585-fca71a1ba34a"/>
+				<textElement>
+					<font size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{codtercero}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="323" y="0" width="145" height="14" uuid="1fcbd6f0-b6fe-4583-981a-7b7aa773bf1e"/>
+				<textElement>
+					<font size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{tercero}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="468" y="0" width="68" height="14" uuid="9d943791-949b-48a2-a2aa-ab189b6d608d"/>
+				<textElement>
+					<font size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{c_bpartner_id}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="536" y="0" width="68" height="14" uuid="29d8a70f-d181-4e43-a344-5aaa4995813d"/>
+				<textElement>
+					<font size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{abono}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="604" y="0" width="68" height="14" uuid="86385e14-1a25-4ce5-b206-2289681857a3"/>
+				<textElement>
+					<font size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{creadopor}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="672" y="0" width="40" height="14" uuid="19ed796e-fa9f-4fe8-b4b5-c8baeb508e6e"/>
+				<textElement>
+					<font size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{latitud}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="712" y="0" width="40" height="14" uuid="866ac8b3-bb6f-4c58-acfb-c19c43e964c8"/>
+				<textElement>
+					<font size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{longitud}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+</jasperReport>

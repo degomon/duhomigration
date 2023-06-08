@@ -1,0 +1,366 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="terceros-sin-abono" language="groovy" pageWidth="792" pageHeight="612" orientation="Landscape" columnWidth="752" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" isIgnorePagination="true" uuid="3a38a810-caa5-459f-b344-56427d5fc1bd">
+	<property name="ireport.zoom" value="1.0"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<parameter name="fecha" class="java.util.Date"/>
+	<parameter name="idsucursal" class="java.math.BigDecimal"/>
+	<parameter name="fechainicial" class="java.util.Date"/>
+	<queryString>
+		<![CDATA[with wanted as (
+
+select suc.name as sucursal, bp.value as codigo,
+bp.name as tercero,
+car.legacy_cartera_id,
+car.fecha::date as fecha,
+car.dias_cre as plazo,
+add_business_day(car.fecha::date, car.dias_cre) as fechavence,
+case
+	when ( now()::date - add_business_day(car.fecha::date, car.dias_cre)) <= 0 then 0
+	else ( now()::date - add_business_day(car.fecha::date, car.dias_cre)) end as diasvencimiento,
+car.montototal as debito,
+coalesce(sum(cob.abono), 0.00)::numeric as credito,
+car.montototal - coalesce(sum(cob.abono), 0.00)::numeric as saldocar,
+car.cuota as cuota,
+coalesce(  (select max(cobq.operacion::date)
+			from legacy_cobro cobq
+			where cobq.id_cartera = car.legacy_cartera_id ),
+car.fecha::date) as fechaultimoabono,
+$P{fecha} - (coalesce(  (select max(cobq.operacion::date)
+			from legacy_cobro cobq
+			where cobq.id_cartera = car.legacy_cartera_id ),
+car.fecha::date)) as sinabonar,
+car.cuota * ( $P{fecha} - (coalesce(  (select max(cobq.operacion::date)
+			from legacy_cobro cobq
+			where cobq.id_cartera = car.legacy_cartera_id ),
+car.fecha::date))) as montoretraso,
+ru.name as ruta
+from c_bpartner bp
+inner join legacy_cartera car on bp.c_bpartner_id = car.c_bpartner_id
+inner join legacy_cobro cob on car.legacy_cartera_id = cob.id_cartera
+inner join ad_org suc on bp.ad_org_trx_id = suc.ad_org_id
+left join cv_ruta ru on bp.cv_ruta_id = ru.cv_ruta_id
+where
+bp.ad_org_trx_id = $P{idsucursal}
+and car.saldo > 0
+and car.fecha::date between $P{fechainicial}::date and $P{fecha}::date
+and cob.operacion::date <= $P{fecha}
+and not exists (select 1 from legacy_cobro
+				where c_bpartner_id = bp.c_bpartner_id
+				and operacion::date = $P{fecha}
+				and id_cartera = car.legacy_cartera_id )
+group by car.legacy_cartera_id,
+bp.c_bpartner_id, bp.value, bp.name, ru.name, suc.name
+)
+
+select * from wanted w where w.saldocar > 0 order by w.ruta, w.fecha]]>
+	</queryString>
+	<field name="sucursal" class="java.lang.String"/>
+	<field name="codigo" class="java.lang.String"/>
+	<field name="tercero" class="java.lang.String"/>
+	<field name="legacy_cartera_id" class="java.lang.Long"/>
+	<field name="fecha" class="java.sql.Date"/>
+	<field name="plazo" class="java.lang.Integer"/>
+	<field name="fechavence" class="java.sql.Date"/>
+	<field name="diasvencimiento" class="java.lang.Integer"/>
+	<field name="debito" class="java.math.BigDecimal"/>
+	<field name="credito" class="java.math.BigDecimal"/>
+	<field name="saldocar" class="java.math.BigDecimal"/>
+	<field name="cuota" class="java.math.BigDecimal"/>
+	<field name="fechaultimoabono" class="java.sql.Date"/>
+	<field name="sinabonar" class="java.lang.Integer"/>
+	<field name="montoretraso" class="java.math.BigDecimal"/>
+	<field name="ruta" class="java.lang.String"/>
+	<variable name="debito_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{debito}]]></variableExpression>
+	</variable>
+	<variable name="credito_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{credito}]]></variableExpression>
+	</variable>
+	<variable name="saldocar_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{saldocar}]]></variableExpression>
+	</variable>
+	<variable name="montoretraso_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{montoretraso}]]></variableExpression>
+	</variable>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="149" splitType="Stretch">
+			<staticText>
+				<reportElement x="0" y="20" width="752" height="20" uuid="804ed600-905e-40fd-bcf2-a77150ccef06"/>
+				<textElement verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[CLIENTES QUE NO REALIZARON ABONOS]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="0" y="40" width="752" height="20" uuid="107f68d9-b6a7-4a40-935c-563568f088a9"/>
+				<textElement verticalAlignment="Middle" markup="none">
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA["FECHA: " + new SimpleDateFormat("dd/MM/YYYY").format( $P{fecha})]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="0" y="0" width="752" height="20" uuid="73492f9c-289e-4f09-b6b8-4a127774d77d"/>
+				<textElement verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[CREDIVELOZ]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="0" y="60" width="752" height="20" uuid="beb42047-dd88-4eda-91c4-6a29b127718a"/>
+				<textElement verticalAlignment="Middle" markup="none">
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA["CREDITOS A PARTIR DE: " + new SimpleDateFormat("dd/MM/YYYY").format( $P{fechainicial})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="0" y="80" width="752" height="20" uuid="1eaab14e-d1d3-48e4-8ac8-561c2a47a90c"/>
+				<textElement verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA["SUCURSAL: " + $F{sucursal}]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<columnHeader>
+		<band height="61" splitType="Stretch">
+			<staticText>
+				<reportElement x="0" y="2" width="50" height="37" uuid="ec739ed9-6fc3-4332-9d1f-352ff7643ad4"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Código]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="50" y="2" width="143" height="37" uuid="a140783f-a5ed-4df1-8da6-0eb219906434"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Tercero]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="193" y="2" width="40" height="37" uuid="92950d1d-995b-418f-ba8b-823a39b717e6"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Fecha Desembolso]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="233" y="2" width="50" height="37" uuid="95394c73-f9fe-48e5-a44b-6d3c255f8ac4"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Débito]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="283" y="0" width="50" height="37" uuid="b509be60-51cf-4823-bcb6-e821b5c4ca14"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Crédito]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="333" y="2" width="50" height="37" uuid="873c3ae4-3265-4473-bef1-e98abb395ca9"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Saldo]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="383" y="2" width="30" height="37" uuid="b7a5cea7-bded-4b3a-803a-1087eb5d745f"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Plazo]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="413" y="2" width="30" height="37" uuid="ae885f41-fcd1-44c2-b7ec-cf0f9becf85e"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Cuota]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="443" y="2" width="49" height="37" uuid="269a55ba-8798-4a34-a731-1340ba95da30"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Fecha Vence]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="492" y="2" width="35" height="37" uuid="247ea197-e0e4-4acd-aa38-93091398229c"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Dias Vencida]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="527" y="2" width="40" height="37" uuid="8d3c5905-3d84-4c4e-a0c5-72597b2e70a2"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Último Abono]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="567" y="2" width="35" height="37" uuid="a512264d-ab51-497d-8428-7439bb81fc0c"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Días sin Abonar]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="602" y="2" width="55" height="37" uuid="3732cdac-ee61-41d8-a96a-0e35a2a9c028"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Monto Retraso]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="657" y="2" width="95" height="37" uuid="fa831c0a-8717-449d-b967-72a17d636886"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Ruta]]></text>
+			</staticText>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="12" splitType="Stretch">
+			<textField>
+				<reportElement x="0" y="0" width="50" height="12" uuid="1f5c32ed-c426-4873-8e10-d56abf5185e8"/>
+				<textElement verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{codigo}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="50" y="0" width="143" height="12" uuid="bcfe274d-4b9f-437c-b5a7-e6f660d1a0fe"/>
+				<textElement verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{tercero}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="193" y="0" width="40" height="12" uuid="4c096f37-a29a-492e-98a6-27d564c995a6"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{fecha}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="233" y="0" width="50" height="12" uuid="db7e16a8-b107-4449-a26b-2dffd68342ed"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{debito}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="283" y="0" width="50" height="12" uuid="13579d31-9eab-477a-bcfb-3099ce310b0a"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{credito}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="333" y="0" width="50" height="12" uuid="447d229c-c14f-4c47-a787-6a47919e0fa0"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{saldocar}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="383" y="0" width="30" height="12" uuid="83220ce6-2b17-453d-99c4-2bb45d5646f8"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{plazo}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="413" y="0" width="30" height="12" uuid="4d1aa867-cca1-48a7-b397-bf8f0a6fea42"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{cuota}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="443" y="0" width="49" height="12" uuid="941d1338-84fe-48ab-9f8d-38c41f8cf518"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{fechavence}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="492" y="0" width="35" height="12" uuid="88e0572f-7d13-41a0-ad39-b7baef573702"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{diasvencimiento}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="527" y="0" width="40" height="12" uuid="36380089-b858-4466-9131-39a65c432682"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{fechaultimoabono}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="567" y="0" width="35" height="12" uuid="8c251752-89d4-4646-b1e7-2a59d943d8d6"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{sinabonar}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="602" y="0" width="55" height="12" uuid="0c09bc94-5222-47d8-b844-7f524b6f9c99"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{montoretraso}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="657" y="0" width="95" height="12" uuid="f8b88840-2d6f-4bb6-965f-a7a052b851b1"/>
+				<box leftPadding="5"/>
+				<textElement verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{ruta}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<summary>
+		<band height="54" splitType="Stretch">
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="233" y="0" width="50" height="20" uuid="c6226848-023a-4ed7-837f-ea46a2e74ea9"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{debito_1}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="283" y="0" width="50" height="20" uuid="dda51f03-caea-4b0f-a72f-55db374e2b7a"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{credito_1}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="333" y="0" width="50" height="20" uuid="84b3065d-dea5-4f2e-a3d3-0cd15f6c8003"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{saldocar_1}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="602" y="0" width="55" height="20" uuid="d4c2c5ef-d823-4dfb-8ffe-3324bcaa55e7"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{montoretraso_1}]]></textFieldExpression>
+			</textField>
+		</band>
+	</summary>
+</jasperReport>

@@ -1,0 +1,750 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="analisis-cartera-sucursal" language="groovy" pageWidth="792" pageHeight="612" orientation="Landscape" columnWidth="752" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" isIgnorePagination="true" uuid="aa10ac00-51a9-4ff2-98be-1578678a1489">
+	<property name="ireport.zoom" value="1.0"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<style name="table">
+		<box>
+			<pen lineWidth="1.0" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="table_TH" mode="Opaque" backcolor="#F0F8FF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="table_CH" mode="Opaque" backcolor="#BFE1FF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="table_TD" mode="Opaque" backcolor="#FFFFFF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="table 1">
+		<box>
+			<pen lineWidth="1.0" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="table 1_TH" mode="Opaque" backcolor="#F0F8FF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="table 1_CH" mode="Opaque" backcolor="#BFE1FF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="table 1_TD" mode="Opaque" backcolor="#FFFFFF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<subDataset name="dsResumen" uuid="ffec3e5d-34f6-49ae-b67c-1cff16aea1bc">
+		<parameter name="idsucursal_resumen" class="java.math.BigDecimal">
+			<defaultValueExpression><![CDATA[]]></defaultValueExpression>
+		</parameter>
+		<parameter name="fechafinal" class="java.util.Date">
+			<defaultValueExpression><![CDATA[]]></defaultValueExpression>
+		</parameter>
+		<queryString>
+			<![CDATA[with rawsaldos as (
+select
+car.legacy_cartera_id as recid,
+car.fecha::date as fecha,
+date_part('year', car.fecha) yy_fecha,
+date_part('month', car.fecha) mm_fecha,
+car.dias_cre as plazo,
+add_business_day(car.fecha::date, car.dias_cre) as fechavence,
+case
+	when ( $P{fechafinal}::date - add_business_day(car.fecha::date, car.dias_cre)) <= 0 then 0
+	else ( $P{fechafinal}::date - add_business_day(car.fecha::date, car.dias_cre)) end as diasvencimiento,
+bp.c_bpartner_id,
+bp.value as codigo,
+bp.name as tercero,
+coalesce( (select documentno from c_invoice inv
+where inv.c_invoice_id = car.local_id), car.id_cartera::character varying) as documentno,
+car.montototal as debito,
+coalesce(sum(cob.abono),0.00)::numeric as credito,
+car.montototal - coalesce(sum(cob.abono),0.00)::numeric as saldo,
+coalesce(  (select max(cobq.operacion::date)
+			from legacy_cobro cobq
+			where cobq.id_cartera = car.legacy_cartera_id
+			and cobq.operacion::date <= $P{fechafinal}::date ),
+car.fecha::date) as fechaultimoabono,
+ru.name as ruta
+from legacy_cartera car
+inner join c_bpartner bp on car.c_bpartner_id = bp.c_bpartner_id
+inner join cv_ruta ru on bp.cv_ruta_id = ru.cv_ruta_id
+left join legacy_cobro cob on car.legacy_cartera_id = cob.id_cartera
+where bp.ad_org_trx_id =  $P{idsucursal_resumen}
+and car.fecha::date <= $P{fechafinal}::date
+group by car.legacy_cartera_id,
+bp.c_bpartner_id,
+bp.value,
+bp.name,
+ru.name
+),
+
+credihist as (
+select rs.*,
+$P{fechafinal}::date - rs.fechaultimoabono as sinabonar,
+(select name from ad_org where ad_org_id = $P{idsucursal_resumen}) as nombresucursal
+from rawsaldos rs
+where rs.saldo <> 0
+)
+
+select ch.ruta,
+ch.yy_fecha,
+count(ch.recid) as totalcreditos,
+count(ch.recid) filter (where ch.diasvencimiento > 30) as creditosvencidos,
+sum(ch.debito) as debito,
+sum(ch.saldo) as saldo_cxc,
+sum(ch.saldo) filter (where ch.diasvencimiento > 30) as saldo_vencido
+from credihist ch
+group by ch.ruta, ch.yy_fecha
+order by ch.yy_fecha, ch.ruta]]>
+		</queryString>
+		<field name="ruta" class="java.lang.String"/>
+		<field name="yy_fecha" class="java.lang.Double"/>
+		<field name="totalcreditos" class="java.lang.Long"/>
+		<field name="creditosvencidos" class="java.lang.Long"/>
+		<field name="debito" class="java.math.BigDecimal"/>
+		<field name="saldo_cxc" class="java.math.BigDecimal"/>
+		<field name="saldo_vencido" class="java.math.BigDecimal"/>
+		<variable name="totalCreditosYear" class="java.lang.Long" resetType="Group" resetGroup="grpYear" calculation="Sum">
+			<variableExpression><![CDATA[$F{totalcreditos}]]></variableExpression>
+		</variable>
+		<variable name="totalCreditosVencidosYear" class="java.lang.Long" resetType="Group" resetGroup="grpYear" calculation="Sum">
+			<variableExpression><![CDATA[$F{creditosvencidos}]]></variableExpression>
+		</variable>
+		<variable name="debitosYear" class="java.math.BigDecimal" resetType="Group" resetGroup="grpYear" calculation="Sum">
+			<variableExpression><![CDATA[$F{debito}]]></variableExpression>
+		</variable>
+		<variable name="saldosYear" class="java.math.BigDecimal" resetType="Group" resetGroup="grpYear" calculation="Sum">
+			<variableExpression><![CDATA[$F{saldo_cxc}]]></variableExpression>
+		</variable>
+		<variable name="saldosVencidosYear" class="java.math.BigDecimal" resetType="Group" resetGroup="grpYear" calculation="Sum">
+			<variableExpression><![CDATA[$F{saldo_vencido}]]></variableExpression>
+		</variable>
+		<group name="grpYear">
+			<groupExpression><![CDATA[$F{yy_fecha}]]></groupExpression>
+		</group>
+	</subDataset>
+	<parameter name="ordercolumn" class="java.lang.String"/>
+	<parameter name="idsucursal" class="java.math.BigDecimal"/>
+	<parameter name="showResumen" class="java.lang.String"/>
+	<parameter name="fechafinal" class="java.util.Date">
+		<defaultValueExpression><![CDATA[]]></defaultValueExpression>
+	</parameter>
+	<queryString>
+		<![CDATA[with rawsaldos as (
+select
+car.legacy_cartera_id as recid,
+car.fecha::date as fecha,
+car.dias_cre as plazo,
+add_business_day(car.fecha::date, car.dias_cre) as fechavence,
+case
+	when ( $P{fechafinal}::date - add_business_day(car.fecha::date, car.dias_cre)) <= 0 then 0
+	else ( $P{fechafinal}::date - add_business_day(car.fecha::date, car.dias_cre)) end as diasvencimiento,
+bp.c_bpartner_id,
+bp.value as codigo,
+bp.name as tercero,
+coalesce( (select documentno from c_invoice inv
+where inv.c_invoice_id = car.local_id), car.id_cartera::character varying) as documentno,
+car.montototal as debito,
+coalesce(sum(cob.abono),0.00)::numeric as credito,
+car.montototal - coalesce(sum(cob.abono),0.00)::numeric as saldo,
+coalesce(  (select max(cobq.operacion::date)
+			from legacy_cobro cobq
+			where cobq.id_cartera = car.legacy_cartera_id and cobq.abono > 0
+			and cobq.operacion::date <= $P{fechafinal}::date ),
+car.fecha::date) as fechaultimoabono,
+ru.name as ruta
+from legacy_cartera car
+inner join c_bpartner bp on car.c_bpartner_id = bp.c_bpartner_id
+inner join cv_ruta ru on bp.cv_ruta_id = ru.cv_ruta_id
+left join legacy_cobro cob on car.legacy_cartera_id = cob.id_cartera
+where bp.ad_org_trx_id =  $P{idsucursal}
+and car.fecha::date <= $P{fechafinal}::date
+group by car.legacy_cartera_id,
+bp.c_bpartner_id,
+bp.value,
+bp.name,
+ru.name
+)
+
+select rs.*,
+$P{fechafinal}::date - rs.fechaultimoabono as sinabonar,
+(select name from ad_org where ad_org_id = $P{idsucursal}) as nombresucursal
+from rawsaldos rs
+where rs.saldo <> 0]]>
+	</queryString>
+	<field name="recid" class="java.lang.Long"/>
+	<field name="fecha" class="java.sql.Date"/>
+	<field name="plazo" class="java.lang.Integer"/>
+	<field name="fechavence" class="java.sql.Date"/>
+	<field name="diasvencimiento" class="java.lang.Integer"/>
+	<field name="c_bpartner_id" class="java.math.BigDecimal"/>
+	<field name="codigo" class="java.lang.String"/>
+	<field name="tercero" class="java.lang.String"/>
+	<field name="documentno" class="java.lang.String"/>
+	<field name="debito" class="java.math.BigDecimal"/>
+	<field name="credito" class="java.math.BigDecimal"/>
+	<field name="saldo" class="java.math.BigDecimal"/>
+	<field name="fechaultimoabono" class="java.sql.Date"/>
+	<field name="ruta" class="java.lang.String"/>
+	<field name="sinabonar" class="java.lang.Integer"/>
+	<field name="nombresucursal" class="java.lang.String"/>
+	<sortField name="sortByRuta" type="Variable"/>
+	<sortField name="sortFechaDesembolso" type="Variable"/>
+	<sortField name="sortByTercero" type="Variable"/>
+	<sortField name="sortBySaldoBD" order="Descending" type="Variable"/>
+	<sortField name="sortByFecha" type="Variable"/>
+	<sortField name="sortDiasSinAbonar" order="Descending" type="Variable"/>
+	<variable name="sortByTercero" class="java.lang.Object">
+		<variableExpression><![CDATA["8".equals($P{ordercolumn}) ? $F{tercero} : ""]]></variableExpression>
+	</variable>
+	<variable name="sortBySaldoBD" class="java.math.BigDecimal">
+		<variableExpression><![CDATA["12".equals($P{ordercolumn}) ? $F{saldo} : BigDecimal.ZERO]]></variableExpression>
+	</variable>
+	<variable name="sortDiasSinAbonar" class="java.lang.Integer">
+		<variableExpression><![CDATA[$F{sinabonar}]]></variableExpression>
+	</variable>
+	<variable name="debito_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{debito}]]></variableExpression>
+	</variable>
+	<variable name="credito_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{credito}]]></variableExpression>
+	</variable>
+	<variable name="saldo_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{saldo}]]></variableExpression>
+	</variable>
+	<variable name="sortByFecha" class="java.util.Date">
+		<variableExpression><![CDATA["02".equals($P{ordercolumn}) ? $F{fecha} : (new Date())]]></variableExpression>
+	</variable>
+	<variable name="sortByRuta" class="java.lang.String">
+		<variableExpression><![CDATA["13".equals($P{ordercolumn}) ? $F{ruta} : ""]]></variableExpression>
+	</variable>
+	<variable name="sortFechaDesembolso" class="java.util.Date">
+		<variableExpression><![CDATA[$F{fecha}]]></variableExpression>
+	</variable>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="104" splitType="Stretch">
+			<staticText>
+				<reportElement x="0" y="20" width="572" height="20" uuid="644317a1-be37-4461-af7b-0e4aa46b2fb5"/>
+				<textElement verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[ANÁLISIS DE CARTERA A LA FECHA]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="0" width="572" height="20" uuid="4216685b-0644-4c79-bbee-7c055a143a6e"/>
+				<textElement verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[CREDIVELOZ]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="0" y="40" width="572" height="20" uuid="b59c1fdc-5643-4ae0-9fac-7d42800693d3"/>
+				<textElement verticalAlignment="Middle" markup="none">
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA["SUCURSAL: " + $F{nombresucursal}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="0" y="60" width="572" height="20" uuid="d4b9bdc2-2094-4d47-8263-c36f37421cfc"/>
+				<textElement verticalAlignment="Middle" markup="none">
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA["FECHA: " + new SimpleDateFormat("dd/MM/YYYY").format(new Date())]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<pageHeader>
+		<band height="35" splitType="Stretch"/>
+	</pageHeader>
+	<columnHeader>
+		<band height="25" splitType="Stretch">
+			<staticText>
+				<reportElement x="63" y="1" width="65" height="20" uuid="9654af68-5f16-40f2-9e3d-52b5875d1d67"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Código]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="268" y="1" width="53" height="20" uuid="3807f6a4-960e-49ad-88b8-92b19b06c130"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Fecha]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="321" y="1" width="61" height="20" uuid="3609fa08-63c7-4167-b116-8b302a1fbb31"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Documento]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="382" y="1" width="65" height="20" uuid="17c0210c-5f84-43c7-97c9-0dcfd29ed1e9"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Débito]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="447" y="1" width="65" height="20" uuid="1c41209d-aed3-42e6-bf23-d2734a490abe"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Crédito]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="512" y="1" width="65" height="20" uuid="822edab4-5c9f-48e5-916b-60099e512efe"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Saldo]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="577" y="0" width="35" height="20" uuid="53710f85-332d-49ba-b302-184f8e882312"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Plazo]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="612" y="1" width="40" height="20" uuid="eb8ecaf6-06e4-4cc0-afe4-ecde3ccca479"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Fecha Vence]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="652" y="1" width="40" height="20" uuid="dfef1b34-e9be-4eed-a5e0-ce11c61f8cca"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Último Abono]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="692" y="1" width="30" height="20" uuid="701c3f52-c68f-4340-9faa-4808ed1e246e"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Días sin Abonar]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Transparent" x="722" y="1" width="30" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="6bd82e13-a595-42e2-ade8-f516952ea870"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="5" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<text><![CDATA[Días Vencida]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="128" y="0" width="140" height="20" uuid="d1e58170-a20b-4f4b-b871-f95e231a45e6"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Tercero]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="1" width="65" height="20" uuid="704132b8-d5bb-4a8b-9835-df9367efeb7c"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Código]]></text>
+			</staticText>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="14" splitType="Stretch">
+			<textField>
+				<reportElement x="63" y="0" width="65" height="14" uuid="d1b592db-ba04-4b3a-976f-f74fcc8ad8a2"/>
+				<textElement verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{codigo}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="268" y="0" width="53" height="14" uuid="efee3034-97f6-4819-a9c0-0bb700c99136"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{fecha}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="321" y="0" width="61" height="14" uuid="a1598238-95e2-403c-b481-5b28887887c1"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{documentno}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="382" y="0" width="65" height="14" uuid="9e3f012e-dee0-40be-8105-7d0b698eaff0"/>
+				<box rightPadding="5"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{debito}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="447" y="0" width="65" height="14" uuid="3b053237-d0e0-464f-9f18-6dbf32ad942a"/>
+				<box rightPadding="5"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{credito}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="512" y="0" width="65" height="14" uuid="b9882de0-18ef-4f79-a1ba-1f9ae40ca6de"/>
+				<box rightPadding="5"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{saldo}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="577" y="0" width="35" height="14" uuid="eddc9912-0903-4182-b2a5-e7f3a25a6219"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{plazo}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="612" y="0" width="40" height="14" uuid="5015abb1-b476-4ce0-ab4f-9d93d705dffd"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{fechavence}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="652" y="0" width="40" height="14" uuid="48e6c813-1092-4b03-b4f4-45e1ec2052dc"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{fechaultimoabono}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="692" y="0" width="30" height="14" uuid="58fd55c4-5fbd-478f-ba68-9b229f186e13"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{sinabonar}]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="false">
+				<reportElement mode="Transparent" x="722" y="0" width="30" height="14" forecolor="#000000" backcolor="#FFFFFF" uuid="1c0b2968-0191-478a-bc0e-ef5eeef20e68"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="5" isBold="false" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{diasvencimiento}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="128" y="0" width="140" height="14" uuid="ce3f1a22-11b0-4de6-9aaa-c3ae68ac06fe"/>
+				<textElement verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{tercero}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="0" y="0" width="65" height="14" uuid="b18bc76f-c94d-47da-a231-e097d7f3ee93"/>
+				<textElement verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{ruta}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<summary>
+		<band height="320" splitType="Stretch">
+			<textField pattern="#,##0.00;(#,##0.00)" isBlankWhenNull="false">
+				<reportElement mode="Transparent" x="332" y="0" width="65" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="c6a4f7b8-62db-47d5-97b6-bb398c5562bb"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="5" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{debito_1}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)" isBlankWhenNull="false">
+				<reportElement mode="Transparent" x="397" y="0" width="65" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="463b2d8e-d0b6-4d89-8140-875f6b8b2346"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="5" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{credito_1}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)" isBlankWhenNull="false">
+				<reportElement mode="Transparent" x="462" y="0" width="65" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="84c038be-4d5b-4bc6-942f-e66967ba6f46"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="5" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{saldo_1}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="0" y="0" width="332" height="20" uuid="457bdfe5-1255-427e-99ba-d5969a6491cb"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<text><![CDATA[TOTALES GENERALES ==>  ]]></text>
+			</staticText>
+			<componentElement>
+				<reportElement key="table 1" style="table 1" x="0" y="120" width="752" height="82" uuid="94d7f57c-3d45-454a-a85e-e68afa34acd5">
+					<printWhenExpression><![CDATA["Y".equals($P{showResumen})]]></printWhenExpression>
+				</reportElement>
+				<jr:table xmlns:jr="http://jasperreports.sourceforge.net/jasperreports/components" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports/components http://jasperreports.sourceforge.net/xsd/components.xsd">
+					<datasetRun subDataset="dsResumen" uuid="2be58fb5-acd6-4da9-a10b-e38a28788b1e">
+						<datasetParameter name="idsucursal_resumen">
+							<datasetParameterExpression><![CDATA[$P{idsucursal}]]></datasetParameterExpression>
+						</datasetParameter>
+						<datasetParameter name="fechafinal">
+							<datasetParameterExpression><![CDATA[$P{fechafinal}]]></datasetParameterExpression>
+						</datasetParameter>
+						<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+					</datasetRun>
+					<jr:column width="90" uuid="95e13ba2-a6a8-4c5e-853c-3c4336e1578c">
+						<jr:tableHeader style="table 1_TH" height="30" rowSpan="1"/>
+						<jr:tableFooter style="table 1_TH" height="7" rowSpan="1"/>
+						<jr:groupFooter groupName="grpYear">
+							<jr:cell style="table 1_TH" height="30" rowSpan="1"/>
+						</jr:groupFooter>
+						<jr:columnHeader style="table 1_CH" height="30" rowSpan="1">
+							<staticText>
+								<reportElement x="0" y="0" width="90" height="30" uuid="1b898fb6-c35d-43f0-a668-1d82829fa314"/>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font size="6" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Ruta]]></text>
+							</staticText>
+						</jr:columnHeader>
+						<jr:columnFooter style="table 1_CH" height="6" rowSpan="1"/>
+						<jr:detailCell style="table 1_TD" height="12" rowSpan="1">
+							<textField>
+								<reportElement x="0" y="0" width="90" height="12" uuid="d2ac2200-4978-46aa-b41f-987555500b79"/>
+								<box leftPadding="5"/>
+								<textElement verticalAlignment="Middle">
+									<font size="6"/>
+								</textElement>
+								<textFieldExpression><![CDATA[$F{ruta}]]></textFieldExpression>
+							</textField>
+						</jr:detailCell>
+					</jr:column>
+					<jr:column width="90" uuid="309c7400-b208-46cb-8abe-1dcbc6d11dcd">
+						<jr:tableHeader style="table 1_TH" height="30" rowSpan="1"/>
+						<jr:tableFooter style="table 1_TH" height="7" rowSpan="1"/>
+						<jr:groupFooter groupName="grpYear">
+							<jr:cell style="table 1_TH" height="30" rowSpan="1">
+								<textField>
+									<reportElement x="0" y="0" width="90" height="30" uuid="b541e87e-889b-4282-bda1-a4c0a2a8ed48"/>
+									<textElement textAlignment="Center" verticalAlignment="Middle">
+										<font size="6" isBold="true"/>
+									</textElement>
+									<textFieldExpression><![CDATA[$F{yy_fecha}]]></textFieldExpression>
+								</textField>
+							</jr:cell>
+						</jr:groupFooter>
+						<jr:columnHeader style="table 1_CH" height="30" rowSpan="1">
+							<staticText>
+								<reportElement x="0" y="0" width="90" height="30" uuid="4991d37b-2716-4010-b858-e8a7cf896d3a"/>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font size="6" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Año]]></text>
+							</staticText>
+						</jr:columnHeader>
+						<jr:columnFooter style="table 1_CH" height="6" rowSpan="1"/>
+						<jr:detailCell style="table 1_TD" height="12" rowSpan="1">
+							<textField>
+								<reportElement x="0" y="0" width="90" height="12" uuid="25685afc-339b-4da2-91a1-5d756e615d95"/>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font size="6"/>
+								</textElement>
+								<textFieldExpression><![CDATA[$F{yy_fecha}]]></textFieldExpression>
+							</textField>
+						</jr:detailCell>
+					</jr:column>
+					<jr:column width="90" uuid="9d50fb9c-851d-4833-8b92-10a17b5379f3">
+						<jr:tableHeader style="table 1_TH" height="30" rowSpan="1"/>
+						<jr:tableFooter style="table 1_TH" height="7" rowSpan="1"/>
+						<jr:groupFooter groupName="grpYear">
+							<jr:cell style="table 1_TH" height="30" rowSpan="1">
+								<textField>
+									<reportElement x="0" y="0" width="90" height="30" uuid="180c6556-aaa1-471e-ad2b-02e684c0c049"/>
+									<textElement textAlignment="Center" verticalAlignment="Middle">
+										<font size="6" isBold="true"/>
+									</textElement>
+									<textFieldExpression><![CDATA[$V{totalCreditosYear}]]></textFieldExpression>
+								</textField>
+							</jr:cell>
+						</jr:groupFooter>
+						<jr:columnHeader style="table 1_CH" height="30" rowSpan="1">
+							<staticText>
+								<reportElement x="0" y="0" width="90" height="30" uuid="293a327f-3cf6-4420-b649-20c1811c2f79"/>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font size="6" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Total No. Créditos]]></text>
+							</staticText>
+						</jr:columnHeader>
+						<jr:columnFooter style="table 1_CH" height="6" rowSpan="1"/>
+						<jr:detailCell style="table 1_TD" height="12" rowSpan="1">
+							<textField>
+								<reportElement x="0" y="0" width="90" height="12" uuid="bf95f397-28e7-478a-bc0d-1d435ea75774"/>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font size="6"/>
+								</textElement>
+								<textFieldExpression><![CDATA[$F{totalcreditos}]]></textFieldExpression>
+							</textField>
+						</jr:detailCell>
+					</jr:column>
+					<jr:column width="90" uuid="f91ecf2e-aa08-46f6-90fb-f7e91e648720">
+						<jr:tableHeader style="table 1_TH" height="30" rowSpan="1"/>
+						<jr:tableFooter style="table 1_TH" height="7" rowSpan="1"/>
+						<jr:groupFooter groupName="grpYear">
+							<jr:cell style="table 1_TH" height="30" rowSpan="1">
+								<textField pattern="#,##0.00;(#,##0.00)">
+									<reportElement x="0" y="0" width="90" height="30" uuid="2dbe51dd-f5e4-4929-ac38-0c61dcc0788d"/>
+									<textElement textAlignment="Right" verticalAlignment="Middle">
+										<font size="6" isBold="true"/>
+									</textElement>
+									<textFieldExpression><![CDATA[$V{totalCreditosVencidosYear}]]></textFieldExpression>
+								</textField>
+							</jr:cell>
+						</jr:groupFooter>
+						<jr:columnHeader style="table 1_CH" height="30" rowSpan="1">
+							<staticText>
+								<reportElement x="0" y="0" width="90" height="30" uuid="a8fe1f40-17de-4145-b538-3036824fc38e"/>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font size="6" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Total No. Créditos Vencidos]]></text>
+							</staticText>
+						</jr:columnHeader>
+						<jr:columnFooter style="table 1_CH" height="6" rowSpan="1"/>
+						<jr:detailCell style="table 1_TD" height="12" rowSpan="1">
+							<textField pattern="#,##0.00;#,##0.00-">
+								<reportElement x="0" y="0" width="90" height="12" uuid="3b7c9cbe-43e5-4e44-b6c8-831ea22af13b"/>
+								<textElement textAlignment="Right" verticalAlignment="Middle">
+									<font size="6"/>
+								</textElement>
+								<textFieldExpression><![CDATA[$F{creditosvencidos}]]></textFieldExpression>
+							</textField>
+						</jr:detailCell>
+					</jr:column>
+					<jr:column width="90" uuid="175e1ba9-d4c8-438d-8462-4ad631abd50c">
+						<jr:tableHeader style="table 1_TH" height="30" rowSpan="1"/>
+						<jr:tableFooter style="table 1_TH" height="7" rowSpan="1"/>
+						<jr:groupFooter groupName="grpYear">
+							<jr:cell style="table 1_TH" height="30" rowSpan="1">
+								<textField pattern="#,##0.00;(#,##0.00)">
+									<reportElement x="0" y="0" width="90" height="30" uuid="d6132ef8-e5e4-4450-bd98-5f73837c104a"/>
+									<textElement textAlignment="Right" verticalAlignment="Middle">
+										<font size="6" isBold="true"/>
+									</textElement>
+									<textFieldExpression><![CDATA[$V{debitosYear}]]></textFieldExpression>
+								</textField>
+							</jr:cell>
+						</jr:groupFooter>
+						<jr:columnHeader style="table 1_CH" height="30" rowSpan="1">
+							<staticText>
+								<reportElement x="0" y="0" width="90" height="30" uuid="b36af554-643e-4ee2-a20b-85e605d83667"/>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font size="6" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Total Débitos]]></text>
+							</staticText>
+						</jr:columnHeader>
+						<jr:columnFooter style="table 1_CH" height="6" rowSpan="1"/>
+						<jr:detailCell style="table 1_TD" height="12" rowSpan="1">
+							<textField pattern="#,##0.00;#,##0.00-">
+								<reportElement x="0" y="0" width="90" height="12" uuid="0987fd6d-dfbf-40e2-ac3e-62c8c5af5527"/>
+								<textElement textAlignment="Right" verticalAlignment="Middle">
+									<font size="6"/>
+								</textElement>
+								<textFieldExpression><![CDATA[$F{debito}]]></textFieldExpression>
+							</textField>
+						</jr:detailCell>
+					</jr:column>
+					<jr:column width="90" uuid="5896f20c-8256-4ee0-9e0e-38bd9ac0a82c">
+						<jr:tableHeader style="table 1_TH" height="30" rowSpan="1"/>
+						<jr:tableFooter style="table 1_TH" height="7" rowSpan="1"/>
+						<jr:groupFooter groupName="grpYear">
+							<jr:cell style="table 1_TH" height="30" rowSpan="1">
+								<textField pattern="#,##0.00;(#,##0.00)">
+									<reportElement x="0" y="0" width="90" height="30" uuid="4f87ec63-d3ab-4bad-b2e7-5860223f470d"/>
+									<textElement textAlignment="Right" verticalAlignment="Middle">
+										<font size="6" isBold="true"/>
+									</textElement>
+									<textFieldExpression><![CDATA[$V{saldosYear}]]></textFieldExpression>
+								</textField>
+							</jr:cell>
+						</jr:groupFooter>
+						<jr:columnHeader style="table 1_CH" height="30" rowSpan="1">
+							<staticText>
+								<reportElement x="0" y="0" width="90" height="30" uuid="4f9c7cb1-e96a-432d-9e8c-4c149c0d7277"/>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font size="6" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Saldo CxC]]></text>
+							</staticText>
+						</jr:columnHeader>
+						<jr:columnFooter style="table 1_CH" height="6" rowSpan="1"/>
+						<jr:detailCell style="table 1_TD" height="12" rowSpan="1">
+							<textField pattern="#,##0.00;#,##0.00-">
+								<reportElement x="0" y="0" width="90" height="12" uuid="928114ce-c91d-4f49-9399-cd49b4ab63d4"/>
+								<textElement textAlignment="Right" verticalAlignment="Middle">
+									<font size="6"/>
+								</textElement>
+								<textFieldExpression><![CDATA[$F{saldo_cxc}]]></textFieldExpression>
+							</textField>
+						</jr:detailCell>
+					</jr:column>
+					<jr:column width="90" uuid="5e53a39f-ad7f-48ea-80b4-da870b9d0820">
+						<jr:tableHeader style="table 1_TH" height="30" rowSpan="1"/>
+						<jr:tableFooter style="table 1_TH" height="7" rowSpan="1"/>
+						<jr:groupFooter groupName="grpYear">
+							<jr:cell style="table 1_TH" height="30" rowSpan="1">
+								<textField pattern="#,##0.00;(#,##0.00)" isBlankWhenNull="true">
+									<reportElement x="0" y="0" width="90" height="30" uuid="b59d97d8-ae49-48bd-89c9-9832c7177e97"/>
+									<textElement textAlignment="Right" verticalAlignment="Middle">
+										<font size="6" isBold="true"/>
+									</textElement>
+									<textFieldExpression><![CDATA[$V{saldosVencidosYear}]]></textFieldExpression>
+								</textField>
+							</jr:cell>
+						</jr:groupFooter>
+						<jr:columnHeader style="table 1_CH" height="30" rowSpan="1">
+							<staticText>
+								<reportElement x="0" y="0" width="90" height="30" uuid="ebfb33ce-41f5-471c-8667-169f88026757"/>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font size="6" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Saldos Vencidos]]></text>
+							</staticText>
+						</jr:columnHeader>
+						<jr:columnFooter style="table 1_CH" height="6" rowSpan="1"/>
+						<jr:detailCell style="table 1_TD" height="12" rowSpan="1">
+							<textField pattern="#,##0.00;#,##0.00-" isBlankWhenNull="true">
+								<reportElement x="0" y="0" width="90" height="12" uuid="253b68da-6668-4787-861c-139bec1d93ae"/>
+								<textElement textAlignment="Right" verticalAlignment="Middle">
+									<font size="6"/>
+								</textElement>
+								<textFieldExpression><![CDATA[$F{saldo_vencido}]]></textFieldExpression>
+							</textField>
+						</jr:detailCell>
+					</jr:column>
+				</jr:table>
+			</componentElement>
+		</band>
+	</summary>
+</jasperReport>

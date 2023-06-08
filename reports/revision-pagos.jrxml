@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="RevisionPagos" language="groovy" pageWidth="792" pageHeight="612" orientation="Landscape" columnWidth="752" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="c0ce8a68-5cf4-45ec-b809-37819c03ddff">
+	<property name="ireport.zoom" value="1.0"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<parameter name="fechainicial" class="java.util.Date"/>
+	<parameter name="fechafinal" class="java.util.Date"/>
+	<parameter name="idcuenta" class="java.math.BigDecimal"/>
+	<queryString>
+		<![CDATA[select p.documentno,
+bp.name as tercero,
+p.dateacct::date as dateacct,
+p.description as concepto,
+dt.printname as tipodoc,
+ch.name as cargo,
+dt.docbasetype,
+case when dt.docbasetype = 'APP' then 0.00 else p.payamt end as ingresos,
+case when dt.docbasetype = 'ARR' then 0.00 else p.payamt end as egresos,
+p.created,
+bac.name as cuenta,
+p.docstatus
+from c_payment p
+inner join c_doctype dt on p.c_doctype_id = dt.c_doctype_id
+inner join c_bankaccount bac on p.c_bankaccount_id = bac.c_bankaccount_id
+left join c_charge ch on p.c_charge_id = ch.c_charge_id
+inner join c_bpartner bp on p.c_bpartner_id = bp.c_bpartner_id
+where bac.C_BankAccount_ID=$P{idcuenta}
+and p.dateacct::date between $P{fechainicial}::date and $P{fechafinal}::date
+
+order by dateacct asc, created asc]]>
+	</queryString>
+	<field name="documentno" class="java.lang.String"/>
+	<field name="tercero" class="java.lang.String"/>
+	<field name="dateacct" class="java.sql.Date"/>
+	<field name="concepto" class="java.lang.String"/>
+	<field name="tipodoc" class="java.lang.String"/>
+	<field name="cargo" class="java.lang.String"/>
+	<field name="docbasetype" class="java.lang.String"/>
+	<field name="ingresos" class="java.math.BigDecimal"/>
+	<field name="egresos" class="java.math.BigDecimal"/>
+	<field name="created" class="java.sql.Timestamp"/>
+	<field name="cuenta" class="java.lang.String"/>
+	<field name="docstatus" class="java.lang.String"/>
+	<variable name="ingresos_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{ingresos}]]></variableExpression>
+	</variable>
+	<variable name="egresos_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{egresos}]]></variableExpression>
+	</variable>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="115" splitType="Stretch">
+			<staticText>
+				<reportElement x="0" y="20" width="572" height="20" uuid="bfa37a31-38f2-4ce6-9e87-dc1bd212d330"/>
+				<textElement verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[REVISIÓN DE PAGOS]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="0" width="572" height="20" uuid="18e29b81-fe73-47bb-a1ca-ee70299fc12e"/>
+				<textElement verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[CREDIVELOZ]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="0" y="40" width="572" height="20" uuid="d19be3f1-96b4-462a-838a-50b697ec6c3f"/>
+				<textElement verticalAlignment="Middle" markup="html"/>
+				<textFieldExpression><![CDATA["Nombre de la Cuenta: <b>" + $F{cuenta} + "</b>"]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="0" y="60" width="572" height="20" uuid="25614ea7-4d52-426a-af29-104fe48eee9e"/>
+				<textElement verticalAlignment="Middle" markup="html"/>
+				<textFieldExpression><![CDATA["Del <b>" + new SimpleDateFormat("dd/MM/YYYY").format( $P{fechainicial} ) + "</b>"
++ " al <b>" + new SimpleDateFormat("dd/MM/YYYY").format( $P{fechafinal} ) + "</b>"]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<pageHeader>
+		<band height="35" splitType="Stretch">
+			<staticText>
+				<reportElement x="0" y="0" width="48" height="20" uuid="746d328b-817c-4cd2-bbaa-62a5e3e97e05"/>
+				<textElement textAlignment="Center">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Fecha]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="48" y="0" width="43" height="20" uuid="d90311d1-dd12-4d1c-bc0f-4a78320232c6"/>
+				<textElement textAlignment="Center">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[No. Doc]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="90" y="0" width="180" height="20" uuid="a2766ed4-acb5-4911-8310-49ddff8e4768"/>
+				<textElement textAlignment="Center">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Tercero]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="270" y="0" width="42" height="20" uuid="0504dd8e-0495-4ff8-b71c-2e21baf3d688"/>
+				<textElement textAlignment="Center">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Tipo Doc.]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="312" y="0" width="82" height="20" uuid="d5354f56-6110-4a55-bd91-3b4f89d4e643"/>
+				<textElement textAlignment="Center">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Cargo]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="393" y="0" width="50" height="20" uuid="30d16dbe-b25a-4c94-9290-3d91f4eaf312"/>
+				<textElement textAlignment="Center">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Ingresos]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="442" y="0" width="50" height="20" uuid="6a721f22-8648-4b6b-93ea-84ae906d2112"/>
+				<textElement textAlignment="Center">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Egresos]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="525" y="0" width="226" height="20" uuid="70319ad1-5c66-41fb-a2ef-36bdf1a5f5de"/>
+				<textElement textAlignment="Center">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Concepto]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Transparent" x="492" y="0" width="33" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="0f16429f-2591-4592-b220-b14c4aea6bac"/>
+				<textElement textAlignment="Center" verticalAlignment="Top" rotation="None" markup="none">
+					<font fontName="SansSerif" size="8" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<text><![CDATA[Estado]]></text>
+			</staticText>
+		</band>
+	</pageHeader>
+	<detail>
+		<band height="21" splitType="Stretch">
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="0" y="0" width="48" height="20" uuid="132526aa-61b7-44e0-a764-7f17c4a75852"/>
+				<textElement verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{dateacct}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="48" y="0" width="43" height="20" uuid="604ab39d-8dbb-4a2c-bad0-422c1fa8c21e"/>
+				<textElement verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{documentno}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="90" y="0" width="180" height="20" uuid="36ab9553-67c2-4f59-8db6-c10aef633666"/>
+				<textElement verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{tercero}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="270" y="0" width="42" height="20" uuid="ca125797-2dd7-433c-8f41-b782aaf98a7a"/>
+				<textElement verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{tipodoc}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="312" y="0" width="82" height="20" uuid="d6c18017-0dd6-4329-96ef-50de781bbfa7"/>
+				<textElement verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{cargo}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="393" y="0" width="50" height="20" uuid="545fb078-bf5c-4e4a-9d14-5c13ee814ce0"/>
+				<box rightPadding="5"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{ingresos}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="442" y="0" width="50" height="20" uuid="53b2cea6-29b6-4d20-b246-38288465f00e"/>
+				<box rightPadding="5"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{egresos}]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true">
+				<reportElement x="525" y="0" width="226" height="20" uuid="ad5b7423-7f66-4f0a-9ff1-8fc01ef66c5b"/>
+				<box leftPadding="4"/>
+				<textElement verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{concepto}]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="false">
+				<reportElement mode="Transparent" x="492" y="1" width="33" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="1caa732c-57ed-4ed9-82e9-846937d3fbec"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="8" isBold="false" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{docstatus}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<summary>
+		<band height="72" splitType="Stretch"/>
+	</summary>
+</jasperReport>
