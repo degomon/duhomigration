@@ -165,6 +165,19 @@ while (rs.next()) {
     psmtCierre.setInt(2, orgid);
     psmtCierre.setMaxRows(50000);
     ResultSet rsCierre = psmtCierre.executeQuery();
+    ResultSet rsCheck = psmtCierre.executeQuery();
+
+    // Iterate over the rsCheck ResultSet
+    while (rsCheck.next()) {
+        def saldoCaja = rsCheck.getObject(12);
+        def nombreCaja = rsCheck.getObject(3);
+        A_ProcessInfo.addLog(0, null, null, "Caja: $nombreCaja, Saldo: $saldoCaja");
+        if (saldoCaja < 0) {
+            A_ProcessInfo.addLog(0, null, null, "Saldo de $nombreCaja  es menor que cero! [$saldoCaja]");
+            return "Saldo de $nombreCaja  es menor que cero! [$saldoCaja]. No se procesarán más cierres de caja hasta arreglar el saldo negativo.";
+        }
+    }
+
     while (rsCierre.next()) {
         System.out.println("Cerrando Caja -> " + rsCierre.getString("codigocaja") );
         BigDecimal efectivo = (BigDecimal) rsCierre.getBigDecimal("efectivo");

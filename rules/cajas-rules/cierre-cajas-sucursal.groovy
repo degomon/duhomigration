@@ -1,5 +1,6 @@
 /**
 Proceso para Cerra Cajas en Sucursal
+20230526 - Evitar cierre si alguna caja tiene saldo negativo
 20210904 - Solo tomar en cuenta envíos a sucursal como "Enviados"
 20210818 - Verificar que no falten docs por procesar
 20210811 - Solo docs en estado CO-CL
@@ -31,6 +32,9 @@ import org.adempiere.exceptions.AdempiereException;
 import java.util.Date;
 import java.text.SimpleDateFormat;
 import org.compiere.process.DocAction;
+import groovy.sql.Sql;
+import java.sql.ResultSetMetaData;
+
 
 CLogger log = CLogger.getCLogger(GenericPO.class);
 MOrg org = null;
@@ -75,6 +79,7 @@ int invoicesDraft = DB.getSQLValue(A_TrxName, sqlInvoicesDraft, [orgid, fechaTS]
 int totalNonSync = carteraNonSync + cobrosNonSync + paymentsDraft + invoicesDraft;
 System.out.println("Total Unsync: " + totalNonSync);
 
+
 if(totalNonSync>0){
     String resultStr = "ERROR: Hay registros pendientes de Procesar " + 
         " Desembolsos: " + carteraNonSync +
@@ -87,6 +92,7 @@ if(totalNonSync>0){
     result = resultStr;
     return resultStr;
 }
+
 System.out.println("Before Query Exec ");
 String orgKey = org.getDescription();
 int workNumber = 0;
@@ -139,6 +145,19 @@ String sqlCajas  = " with sortedpayments as ( " +
     psmt.setInt(2, orgid);
     psmt.setMaxRows(50000);
     ResultSet rs = psmt.executeQuery();
+    ResultSet rsCheck = psmt.executeQuery();
+
+    // Iterate over the rsCheck ResultSet
+    while (rsCheck.next()) {
+        def saldoCaja = rsCheck.getObject(12);
+        def nombreCaja = rsCheck.getObject(3);
+        A_ProcessInfo.addLog(0, null, null, "Caja: $nombreCaja, Saldo: $saldoCaja");
+        if (saldoCaja < 0) {
+            A_ProcessInfo.addLog(0, null, null, "Saldo de $nombreCaja  es menor que cero! [$saldoCaja]");
+            return "Saldo de $nombreCaja  es menor que cero! [$saldoCaja]. No se procesarán más cierres de caja hasta arreglar el saldo negativo.";
+        }
+    }
+
     while (rs.next()) {
         System.out.println("Cerrando Caja -> " + rs.getString("codigocaja") );
         BigDecimal efectivo = (BigDecimal) rs.getBigDecimal("efectivo");
@@ -188,6 +207,8 @@ String sqlCajas  = " with sortedpayments as ( " +
             A_ProcessInfo.addLog(0,null,null, "Caja ya tiene un cierre " + rs.getString("codigocaja") + "-" + rs.getString("nombrecaja") );
         
     } // iterator close
+    
     rs.close();
+    rsCheck.close();
 
 result = "Se ejecutó el proceso de Cierre de Caja satisfactoriamente para Sucursal " + org.getName();
