@@ -1,0 +1,420 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="EstadoCuentaCajaBanco" language="groovy" pageWidth="792" pageHeight="612" orientation="Landscape" columnWidth="752" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="c0ce8a68-5cf4-45ec-b809-37819c03ddff">
+	<property name="ireport.zoom" value="1.0"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<style name="Crosstab Data Text" hAlign="Center"/>
+	<parameter name="fechainicial" class="java.util.Date"/>
+	<parameter name="fechafinal" class="java.util.Date"/>
+	<parameter name="idcuenta" class="java.math.BigDecimal"/>
+	<queryString>
+		<![CDATA[select
+'Saldo Inicial'::character varying as documentno,
+'Saldo Inicial'::character varying as tercero,
+$P{fechainicial}::date as dateacct,
+'==> Saldo Inicial' as concepto,
+'::[ Saldo Inicial ]::' as tipodoc,
+'Saldo Inicial' as cargo,
+dt.docbasetype as doctypebase,
+sum ( case when dt.docbasetype = 'APP' then 0.00 else p.payamt end ) as ingresos,
+sum ( case when dt.docbasetype = 'ARR' then 0.00 else p.payamt end ) as egresos,
+sum ( case when dt.docbasetype = 'ARR' then p.payamt else p.payamt*-1 end ) as saldos,
+(($P{fechainicial}::date) - interval '1 day') as created,
+bac.name as cuenta,
+case when dt.docbasetype = 'APP' then 'Egresos' else 'Ingresos' end as tipomov
+from c_payment p
+inner join c_doctype dt on p.c_doctype_id = dt.c_doctype_id
+inner join c_bankaccount bac on p.c_bankaccount_id = bac.c_bankaccount_id
+where bac.C_BankAccount_ID=$P{idcuenta}
+and p.dateacct::date < $P{fechainicial}::date
+and p.docstatus in ('CO', 'CL')
+group by bac.name, dt.docbasetype
+union
+
+select p.documentno,
+bp.name as tercero,
+p.dateacct::date as dateacct,
+p.description as concepto,
+dt.printname as tipodoc,
+coalesce(ch.name, 'CxC: ' || inv.documentno) as cargo,
+dt.docbasetype,
+case when dt.docbasetype = 'APP' then 0.00 else p.payamt end as ingresos,
+case when dt.docbasetype = 'ARR' then 0.00 else p.payamt end as egresos,
+case when dt.docbasetype = 'ARR' then p.payamt else p.payamt*-1 end  as saldos,
+p.created,
+bac.name as cuenta,
+case when dt.docbasetype = 'APP' then 'Egresos' else 'Ingresos' end as tipomov
+from c_payment p
+inner join c_doctype dt on p.c_doctype_id = dt.c_doctype_id
+inner join c_bankaccount bac on p.c_bankaccount_id = bac.c_bankaccount_id
+left join c_charge ch on p.c_charge_id = ch.c_charge_id
+left join c_invoice inv on p.c_invoice_id = inv.c_invoice_id
+inner join c_bpartner bp on p.c_bpartner_id = bp.c_bpartner_id
+where bac.C_BankAccount_ID=$P{idcuenta}
+and p.dateacct::date between $P{fechainicial}::date and $P{fechafinal}::date
+and p.docstatus in ('CO', 'CL')
+
+order by dateacct asc, created asc]]>
+	</queryString>
+	<field name="documentno" class="java.lang.String"/>
+	<field name="tercero" class="java.lang.String"/>
+	<field name="dateacct" class="java.sql.Date"/>
+	<field name="concepto" class="java.lang.String"/>
+	<field name="tipodoc" class="java.lang.String"/>
+	<field name="cargo" class="java.lang.String"/>
+	<field name="doctypebase" class="java.lang.String"/>
+	<field name="ingresos" class="java.math.BigDecimal"/>
+	<field name="egresos" class="java.math.BigDecimal"/>
+	<field name="saldos" class="java.math.BigDecimal"/>
+	<field name="created" class="java.sql.Timestamp"/>
+	<field name="cuenta" class="java.lang.String"/>
+	<field name="tipomov" class="java.lang.String"/>
+	<variable name="ingresos_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{ingresos}]]></variableExpression>
+	</variable>
+	<variable name="egresos_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{egresos}]]></variableExpression>
+	</variable>
+	<variable name="saldo" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{ingresos}.subtract( $F{egresos} )]]></variableExpression>
+		<initialValueExpression><![CDATA[BigDecimal.ZERO]]></initialValueExpression>
+	</variable>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="91" splitType="Stretch">
+			<staticText>
+				<reportElement x="0" y="20" width="752" height="20" uuid="bfa37a31-38f2-4ce6-9e87-dc1bd212d330"/>
+				<textElement verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[ESTADO DE CUENTA DE CAJA]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="0" width="752" height="20" uuid="18e29b81-fe73-47bb-a1ca-ee70299fc12e"/>
+				<textElement verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[CREDIVELOZ]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="0" y="40" width="752" height="20" uuid="d19be3f1-96b4-462a-838a-50b697ec6c3f"/>
+				<textElement verticalAlignment="Middle" markup="html"/>
+				<textFieldExpression><![CDATA["Nombre de la Cuenta: <b>" + $F{cuenta} + "</b>"]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="0" y="60" width="752" height="20" uuid="25614ea7-4d52-426a-af29-104fe48eee9e"/>
+				<textElement verticalAlignment="Middle" markup="html"/>
+				<textFieldExpression><![CDATA["Del <b>" + new SimpleDateFormat("dd/MM/YYYY").format( $P{fechainicial} ) + "</b>"
++ " al <b>" + new SimpleDateFormat("dd/MM/YYYY").format( $P{fechafinal} ) + "</b>"]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<pageHeader>
+		<band height="17" splitType="Stretch">
+			<staticText>
+				<reportElement x="0" y="0" width="48" height="16" uuid="746d328b-817c-4cd2-bbaa-62a5e3e97e05"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Fecha]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="48" y="0" width="114" height="16" uuid="d90311d1-dd12-4d1c-bc0f-4a78320232c6"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[No. Doc]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="162" y="0" width="182" height="16" uuid="a2766ed4-acb5-4911-8310-49ddff8e4768"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Tercero]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="344" y="0" width="111" height="16" uuid="0504dd8e-0495-4ff8-b71c-2e21baf3d688"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Tipo Doc.]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="455" y="0" width="94" height="16" uuid="d5354f56-6110-4a55-bd91-3b4f89d4e643"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Cargo]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="549" y="0" width="60" height="16" uuid="30d16dbe-b25a-4c94-9290-3d91f4eaf312"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Ingresos]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="609" y="0" width="60" height="16" uuid="6a721f22-8648-4b6b-93ea-84ae906d2112"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Egresos]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="669" y="0" width="82" height="16" uuid="0fc6e1ed-c466-417c-9a53-80bb854c08f5"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Saldo]]></text>
+			</staticText>
+		</band>
+	</pageHeader>
+	<detail>
+		<band height="12" splitType="Stretch">
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="0" y="0" width="48" height="12" uuid="132526aa-61b7-44e0-a764-7f17c4a75852"/>
+				<textElement verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{dateacct}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="48" y="0" width="114" height="12" uuid="604ab39d-8dbb-4a2c-bad0-422c1fa8c21e"/>
+				<box leftPadding="7"/>
+				<textElement verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{documentno}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="162" y="0" width="182" height="12" uuid="36ab9553-67c2-4f59-8db6-c10aef633666"/>
+				<textElement verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{tercero}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="344" y="0" width="111" height="12" uuid="ca125797-2dd7-433c-8f41-b782aaf98a7a"/>
+				<textElement verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{tipodoc}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="455" y="0" width="94" height="12" uuid="d6c18017-0dd6-4329-96ef-50de781bbfa7"/>
+				<textElement verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{cargo}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="549" y="0" width="60" height="12" uuid="545fb078-bf5c-4e4a-9d14-5c13ee814ce0"/>
+				<box rightPadding="5"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{ingresos}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="609" y="0" width="60" height="12" uuid="53b2cea6-29b6-4d20-b246-38288465f00e"/>
+				<box rightPadding="5"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{egresos}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)" isBlankWhenNull="false">
+				<reportElement mode="Transparent" x="669" y="0" width="82" height="12" forecolor="#000000" backcolor="#FFFFFF" uuid="116c740c-75d2-459b-a11c-1a2ea571b22d"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="8" isBold="false" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{saldo}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<summary>
+		<band height="147" splitType="Prevent">
+			<textField pattern="#,##0.00;(#,##0.00)" isBlankWhenNull="false">
+				<reportElement mode="Transparent" x="549" y="0" width="60" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="4dc8aba1-a305-459a-8755-c0368ba9526f"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="8" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{ingresos_1}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)" isBlankWhenNull="false">
+				<reportElement mode="Transparent" x="609" y="0" width="60" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="b944759a-c3d3-4c71-8fd6-5134ac80b825"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="8" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{egresos_1}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="455" y="0" width="94" height="20" uuid="b14ad667-4321-4b79-bc40-3533413a6765"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[TOTALES]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="455" y="20" width="94" height="20" uuid="d7a46910-03bd-4228-b5f6-95a7eebe656a"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[SALDO FINAL]]></text>
+			</staticText>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="549" y="20" width="120" height="20" uuid="c1ccf6d1-4fcc-47c8-a5d2-59a15db6f2e0"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{ingresos_1}.subtract( $V{egresos_1} )]]></textFieldExpression>
+			</textField>
+			<textField evaluationTime="Auto" pattern="#,##0.00;(#,##0.00)" isBlankWhenNull="false">
+				<reportElement mode="Transparent" x="669" y="0" width="82" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="6a0aab76-ed0d-492f-aa08-53603f0059d5"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="8" isBold="true" isItalic="true" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{saldo}]]></textFieldExpression>
+			</textField>
+			<crosstab>
+				<reportElement x="1" y="73" width="751" height="69" uuid="70f2e1ce-f5ee-47dd-8b7f-a3c3bfa280d6"/>
+				<rowGroup name="tipodoc" width="150" totalPosition="End">
+					<bucket class="java.lang.String">
+						<bucketExpression><![CDATA[$F{tipodoc}]]></bucketExpression>
+					</bucket>
+					<crosstabRowHeader>
+						<cellContents backcolor="#F0F8FF" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<textField>
+								<reportElement style="Crosstab Data Text" x="0" y="0" width="150" height="18" uuid="194cf368-af75-4f6e-8de6-9b23b9debf17"/>
+								<textElement verticalAlignment="Middle"/>
+								<textFieldExpression><![CDATA[$V{tipodoc}]]></textFieldExpression>
+							</textField>
+						</cellContents>
+					</crosstabRowHeader>
+					<crosstabTotalRowHeader>
+						<cellContents backcolor="#BFE1FF" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<staticText>
+								<reportElement x="0" y="0" width="150" height="25" uuid="adbced16-4df3-4e82-9163-3d4bbc4c7e33"/>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font isBold="true"/>
+								</textElement>
+								<text><![CDATA[Total tipodoc]]></text>
+							</staticText>
+						</cellContents>
+					</crosstabTotalRowHeader>
+				</rowGroup>
+				<columnGroup name="tipomov" height="30" totalPosition="End">
+					<bucket class="java.lang.String">
+						<bucketExpression><![CDATA[$F{tipomov}]]></bucketExpression>
+					</bucket>
+					<crosstabColumnHeader>
+						<cellContents backcolor="#F0F8FF" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<textField>
+								<reportElement style="Crosstab Data Text" x="0" y="0" width="74" height="30" uuid="e4ae192e-d447-4a0d-a4a3-67f51d9aa181"/>
+								<textElement verticalAlignment="Middle">
+									<font isBold="true"/>
+								</textElement>
+								<textFieldExpression><![CDATA[$V{tipomov}]]></textFieldExpression>
+							</textField>
+						</cellContents>
+					</crosstabColumnHeader>
+					<crosstabTotalColumnHeader>
+						<cellContents backcolor="#BFE1FF" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<staticText>
+								<reportElement x="0" y="0" width="75" height="30" uuid="8038afb0-960c-4746-9aa0-8e47369eb528"/>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font isBold="true"/>
+								</textElement>
+								<text><![CDATA[TOTALES]]></text>
+							</staticText>
+						</cellContents>
+					</crosstabTotalColumnHeader>
+				</columnGroup>
+				<measure name="saldosMeasure" class="java.math.BigDecimal" calculation="Sum">
+					<measureExpression><![CDATA[$F{saldos}]]></measureExpression>
+				</measure>
+				<crosstabCell width="74" height="19">
+					<cellContents>
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<textField pattern="#,##0.00">
+							<reportElement style="Crosstab Data Text" x="0" y="0" width="74" height="18" uuid="6da7c0a4-6ee9-426f-b5ad-bdfdc3a95c92"/>
+							<box rightPadding="7"/>
+							<textElement textAlignment="Right" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{saldosMeasure}.abs()]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="74" height="25" rowTotalGroup="tipodoc">
+					<cellContents backcolor="#BFE1FF" mode="Opaque">
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<textField pattern="#,##0.00">
+							<reportElement style="Crosstab Data Text" x="0" y="0" width="74" height="25" uuid="f897df2b-bcb2-46ed-92c7-377586c153ec"/>
+							<box rightPadding="7"/>
+							<textElement textAlignment="Right" verticalAlignment="Middle">
+								<font isBold="true"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{saldosMeasure}.abs()]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="75" height="19" columnTotalGroup="tipomov">
+					<cellContents backcolor="#BFE1FF" mode="Opaque">
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<textField pattern="#,##0.00">
+							<reportElement style="Crosstab Data Text" x="0" y="0" width="75" height="18" uuid="f9f1651b-e575-44d6-81db-13105509836a"/>
+							<box rightPadding="7"/>
+							<textElement textAlignment="Right" verticalAlignment="Middle"/>
+							<textFieldExpression><![CDATA[$V{saldosMeasure}.abs()]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="75" height="25" rowTotalGroup="tipodoc" columnTotalGroup="tipomov">
+					<cellContents backcolor="#BFE1FF" mode="Opaque">
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<textField pattern="#,##0.00">
+							<reportElement style="Crosstab Data Text" x="0" y="0" width="75" height="25" uuid="1265d6ca-1aef-4274-804d-a3a14b333a86"/>
+							<box rightPadding="7"/>
+							<textElement textAlignment="Right" verticalAlignment="Middle">
+								<font isBold="true"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{saldosMeasure}.abs()]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+			</crosstab>
+			<staticText>
+				<reportElement x="1" y="53" width="751" height="20" uuid="1f92cc34-1ef5-4d13-be9b-0339c061d5cf"/>
+				<textElement verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[RESUMEN DE MOVIMIENTOS PARA EL RANGO DE FECHAS SELECCIONADO]]></text>
+			</staticText>
+		</band>
+	</summary>
+</jasperReport>

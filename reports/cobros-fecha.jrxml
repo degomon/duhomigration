@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="cobros-fecha" language="groovy" pageWidth="792" pageHeight="612" orientation="Landscape" columnWidth="752" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="d7fc3359-0a32-4050-8cc8-441f9f0c6da7">
+	<property name="ireport.zoom" value="1.6105100000000014"/>
+	<property name="ireport.x" value="334"/>
+	<property name="ireport.y" value="0"/>
+	<parameter name="fechainicial" class="java.util.Date"/>
+	<parameter name="fechafinal" class="java.util.Date"/>
+	<parameter name="orgid" class="java.math.BigDecimal"/>
+	<queryString>
+		<![CDATA[/***
+20210727 - Org is a parameter now, ruta shown in report
+deleting duplicates.
+**/
+select cob.masterkey, cob.legacy_cobro_id,
+bp.value as codtercero, bp.name as tercero, cob.abono,
+car.montototal,
+(car.montototal - (select sum(abono)
+from legacy_cobro
+where id_cartera = car.legacy_cartera_id
+and operacion::date <= $P{fechafinal}::date) ) as saldoalcorte,
+cob.created,
+usr.name as creadopor,
+ru.name as nombreruta,
+org.name as nombresucursal,
+cob.coords,
+split_part(cob.coords, '|',1) as latitud,
+split_part(cob.coords, '|',2) as longitud,
+'https://maps.google.com/?q=' || split_part(cob.coords, '|',1) || ',' || split_part(cob.coords, '|',2) as coordenadaLink
+from legacy_cobro cob
+inner join c_bpartner bp on cob.c_bpartner_id = bp.c_bpartner_id
+inner join ad_user usr on cob.createdby = usr.ad_user_id
+inner join legacy_cartera car on cob.id_cartera = car.legacy_cartera_id
+inner join cv_ruta ru on bp.cv_ruta_id = ru.cv_ruta_id
+inner join ad_org org on cob.ad_org_id = org.ad_org_id
+where cob.operacion::date between $P{fechainicial}::date and $P{fechafinal}::date
+and cob.ad_org_id = $P{orgid}
+order by ru.name, cob.created]]>
+	</queryString>
+	<field name="masterkey" class="java.lang.String"/>
+	<field name="legacy_cobro_id" class="java.lang.Long"/>
+	<field name="codtercero" class="java.lang.String"/>
+	<field name="tercero" class="java.lang.String"/>
+	<field name="abono" class="java.math.BigDecimal"/>
+	<field name="montototal" class="java.math.BigDecimal"/>
+	<field name="saldoalcorte" class="java.math.BigDecimal"/>
+	<field name="created" class="java.sql.Timestamp"/>
+	<field name="creadopor" class="java.lang.String"/>
+	<field name="nombreruta" class="java.lang.String"/>
+	<field name="nombresucursal" class="java.lang.String"/>
+	<field name="coords" class="java.lang.String"/>
+	<field name="latitud" class="java.lang.String"/>
+	<field name="longitud" class="java.lang.String"/>
+	<field name="coordenadalink" class="java.lang.String"/>
+	<variable name="abono_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{abono}]]></variableExpression>
+	</variable>
+	<variable name="abono_2" class="java.math.BigDecimal" resetType="Group" resetGroup="grpRuta" calculation="Sum">
+		<variableExpression><![CDATA[$F{abono}]]></variableExpression>
+	</variable>
+	<group name="grpRuta" keepTogether="true">
+		<groupExpression><![CDATA[$F{nombreruta}]]></groupExpression>
+		<groupFooter>
+			<band height="30">
+				<textField pattern="#,##0.00;(#,##0.00)" isBlankWhenNull="false">
+					<reportElement mode="Transparent" x="381" y="0" width="64" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="7516948f-9d54-40f4-b7ee-5993dbebb0b9"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle" rotation="None" markup="none">
+						<font fontName="SansSerif" size="5" isBold="false" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+						<paragraph lineSpacing="Single"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{abono_2}]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="102" y="0" width="279" height="20" uuid="5e2bd431-e486-4fe9-8573-81fa90f90f86"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle" markup="none">
+						<font size="5" isBold="false"/>
+					</textElement>
+					<textFieldExpression><![CDATA["TOTAL COBROS " + $F{nombreruta} + "==> "]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupFooter>
+	</group>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="107" splitType="Stretch">
+			<staticText>
+				<reportElement x="0" y="2" width="572" height="20" uuid="96aca42e-c8b4-4f6a-8a94-574ea2068ddb"/>
+				<textElement verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[CREDIVELOZ]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="22" width="572" height="20" uuid="8d85f53e-84cd-49be-a925-407fa953606d"/>
+				<textElement verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[REPORTE DE COBROS REALIZADOS]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="0" y="42" width="572" height="20" uuid="6d276e58-4ea9-4169-9e30-04c01923a2d2"/>
+				<textElement verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA["COBROS DESDE EL "
++ ( new SimpleDateFormat("dd/MM/YYY").format($P{fechainicial}))
++ " HASTA "
++ ( new SimpleDateFormat("dd/MM/YYY").format( $P{fechafinal} ))]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement mode="Transparent" x="0" y="62" width="572" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="c4664304-8d35-4d53-b340-68d24ef484c2"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="10" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<textFieldExpression><![CDATA["SUCURSAL::> " + $F{nombresucursal}]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<columnHeader>
+		<band height="36" splitType="Stretch">
+			<staticText>
+				<reportElement x="0" y="0" width="110" height="25" uuid="8d13c7f3-ffea-4ae0-92e2-01b3368bff27"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Código Tercero]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="110" y="0" width="155" height="25" uuid="13307fd0-9b9a-485d-acbd-909ea5c75ddf"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Tercero]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="265" y="0" width="70" height="25" uuid="4918c99b-82d2-448f-892c-2fa1dcbc2251"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Total Préstamo]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="390" y="0" width="55" height="25" uuid="97ae14d9-257e-4b26-a1e9-4135f0a71840"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Abono]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="445" y="0" width="55" height="25" uuid="88099c30-4ed9-4884-af24-097c8df39755"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Saldo al Corte]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="500" y="0" width="55" height="25" uuid="3aba4c48-3c73-495f-b00c-4094004031e7"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Creado por]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Transparent" x="555" y="0" width="55" height="26" forecolor="#000000" backcolor="#FFFFFF" uuid="f6aa6fae-3743-456c-9ec6-68782165833e"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="5" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<text><![CDATA[Ruta]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Transparent" x="335" y="0" width="55" height="25" forecolor="#000000" backcolor="#FFFFFF" uuid="35be12f6-5d25-4e4c-8a62-03ccab339a6b"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="5" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<text><![CDATA[ID. Cobro]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Transparent" x="610" y="0" width="100" height="26" forecolor="#000000" backcolor="#FFFFFF" uuid="c0b36833-f7c3-4fd2-8bb8-8a77d3b724a6"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="5" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<text><![CDATA[Coordenadas]]></text>
+			</staticText>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="12" splitType="Stretch">
+			<textField>
+				<reportElement x="0" y="0" width="110" height="12" uuid="931180ef-3827-49af-83e1-ca92bd47eeb7"/>
+				<textElement>
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{codtercero}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="110" y="0" width="155" height="12" uuid="da1706a2-ac57-4166-927e-c06f32f3fc2e"/>
+				<textElement>
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{tercero}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="265" y="0" width="70" height="12" uuid="204d5516-db5f-4884-bc53-9d91f111384b"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{montototal}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="390" y="0" width="55" height="12" uuid="42f622fe-cf8e-40bc-bb31-ba1ca7cb36b7"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{abono}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="445" y="0" width="55" height="12" uuid="71d04660-727b-4fda-ab5a-c2c2f7696b24"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{saldoalcorte}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="500" y="0" width="55" height="12" uuid="1296b077-12d2-4a1b-bbc5-1bc99dfafe88"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{creadopor}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)" isBlankWhenNull="false">
+				<reportElement mode="Transparent" x="555" y="0" width="55" height="12" forecolor="#000000" backcolor="#FFFFFF" uuid="477fe126-ef04-4880-9c11-b9150611a1b3"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="5" isBold="false" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{nombreruta}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="335" y="0" width="55" height="12" uuid="c6f93a2f-ea44-452e-8c75-844e02eb9334"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="5"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{legacy_cobro_id}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)" isBlankWhenNull="false" hyperlinkType="Reference" hyperlinkTarget="Blank">
+				<reportElement mode="Transparent" x="610" y="0" width="100" height="12" forecolor="#000000" backcolor="#FFFFFF" uuid="2005b27f-ea87-4ff2-afb4-3c6f87e943bf"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="5" isBold="false" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<textFieldExpression><![CDATA[null==$F{coords}?"":( "[Lat: " + $F{latitud} + " Long: " + $F{longitud} + "]" )]]></textFieldExpression>
+				<anchorNameExpression><![CDATA["Coordenadas"]]></anchorNameExpression>
+				<hyperlinkReferenceExpression><![CDATA[$F{coordenadalink}]]></hyperlinkReferenceExpression>
+			</textField>
+		</band>
+	</detail>
+	<summary>
+		<band height="42" splitType="Stretch">
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="381" y="0" width="64" height="20" uuid="e94ef386-082e-4e1e-ac1f-7e876deb6dc0"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{abono_1}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="102" y="0" width="279" height="20" uuid="a6640ba9-f967-4de0-b68a-3f2d11c88ecb"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="5" isBold="true"/>
+				</textElement>
+				<text><![CDATA[TOTAL RECUPERADO PARA EL RANGO DE FECHAS =>]]></text>
+			</staticText>
+		</band>
+	</summary>
+</jasperReport>

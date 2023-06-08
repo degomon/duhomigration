@@ -1,0 +1,494 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="comportamiento-diario-io" language="groovy" pageWidth="2500" pageHeight="720" columnWidth="2460" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="a258a210-4201-4482-a599-7d5a139c07e8">
+	<property name="ireport.zoom" value="1.0"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<style name="Crosstab Data Text" hAlign="Center"/>
+	<parameter name="fechainicial" class="java.util.Date"/>
+	<parameter name="fechafinal" class="java.util.Date"/>
+	<queryString>
+		<![CDATA[select m.codsucursal,
+m.sucursal,
+m.fecha,
+sum( case when m.tipomov = 'Cobro' then m.monto else 0.00 end) as cobros,
+sum( case when m.tipomov = 'Desembolso' then m.monto else 0.00 end)  as desembolsos,
+sum( case when m.tipomov = 'Gasto' then m.monto else 0.00 end) as gastos,
+sum( case when m.tipomov = 'Cobro' then m.monto else 0.00 end) -
+sum( case when m.tipomov = 'Desembolso' then m.monto else 0.00 end)  -
+sum( case when m.tipomov = 'Gasto' then m.monto else 0.00 end) as saldo
+from aad_pmovs m
+where fecha between $P{fechainicial}::date and $P{fechafinal}
+group by m.codsucursal, m.fecha, m.sucursal
+order by m.fecha, m.codsucursal, m.sucursal]]>
+	</queryString>
+	<field name="codsucursal" class="java.lang.String"/>
+	<field name="sucursal" class="java.lang.String"/>
+	<field name="fecha" class="java.sql.Date"/>
+	<field name="cobros" class="java.math.BigDecimal"/>
+	<field name="desembolsos" class="java.math.BigDecimal"/>
+	<field name="gastos" class="java.math.BigDecimal"/>
+	<field name="saldo" class="java.math.BigDecimal"/>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="31" splitType="Stretch"/>
+	</title>
+	<columnHeader>
+		<band splitType="Stretch"/>
+	</columnHeader>
+	<detail>
+		<band splitType="Stretch"/>
+	</detail>
+	<columnFooter>
+		<band splitType="Stretch"/>
+	</columnFooter>
+	<summary>
+		<band height="270" splitType="Stretch">
+			<crosstab>
+				<reportElement x="0" y="0" width="3000" height="270" uuid="7b5427cb-a6d1-456c-9dbe-5b3b54265925"/>
+				<rowGroup name="fecha" width="41" totalPosition="End">
+					<bucket class="java.sql.Date">
+						<bucketExpression><![CDATA[$F{fecha}]]></bucketExpression>
+					</bucket>
+					<crosstabRowHeader>
+						<cellContents backcolor="#F0F8FF" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<textField pattern="dd/MM/yyyy">
+								<reportElement style="Crosstab Data Text" x="0" y="0" width="41" height="6" uuid="37c9769d-4682-4200-a31d-f534bf480c8f"/>
+								<textElement>
+									<font size="3"/>
+								</textElement>
+								<textFieldExpression><![CDATA[$V{fecha}]]></textFieldExpression>
+							</textField>
+						</cellContents>
+					</crosstabRowHeader>
+					<crosstabTotalRowHeader>
+						<cellContents backcolor="#BFE1FF" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<staticText>
+								<reportElement x="0" y="0" width="41" height="6" uuid="ddfd2fd4-f92a-4b2b-b166-4c32e77d6640"/>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font size="3"/>
+								</textElement>
+								<text><![CDATA[Total fecha]]></text>
+							</staticText>
+						</cellContents>
+					</crosstabTotalRowHeader>
+				</rowGroup>
+				<columnGroup name="sucursal" height="25" totalPosition="End">
+					<bucket class="java.lang.String">
+						<bucketExpression><![CDATA[$F{sucursal}]]></bucketExpression>
+					</bucket>
+					<crosstabColumnHeader>
+						<cellContents backcolor="#F0F8FF" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<textField>
+								<reportElement style="Crosstab Data Text" x="0" y="0" width="120" height="10" uuid="08f8481e-368a-46bd-872e-0438e4b7dea6"/>
+								<textElement>
+									<font size="5"/>
+								</textElement>
+								<textFieldExpression><![CDATA[$V{sucursal}]]></textFieldExpression>
+							</textField>
+							<staticText>
+								<reportElement style="Crosstab Data Text" x="0" y="10" width="30" height="15" uuid="80964230-eda5-4e9f-b763-62f00a23076f"/>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5"/>
+									<leftPen lineWidth="0.5"/>
+									<bottomPen lineWidth="0.5"/>
+									<rightPen lineWidth="0.5"/>
+								</box>
+								<textElement verticalAlignment="Middle">
+									<font size="3" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Cobros]]></text>
+							</staticText>
+							<staticText>
+								<reportElement style="Crosstab Data Text" x="30" y="10" width="30" height="15" uuid="cf4dba0b-f724-4cf0-b47b-f004f0723171"/>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5"/>
+									<leftPen lineWidth="0.5"/>
+									<bottomPen lineWidth="0.5"/>
+									<rightPen lineWidth="0.5"/>
+								</box>
+								<textElement verticalAlignment="Middle">
+									<font size="3" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Desembolsos]]></text>
+							</staticText>
+							<staticText>
+								<reportElement style="Crosstab Data Text" x="60" y="10" width="30" height="15" uuid="9164d121-cada-426a-bfc7-38d36ce101ef"/>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5"/>
+									<leftPen lineWidth="0.5"/>
+									<bottomPen lineWidth="0.5"/>
+									<rightPen lineWidth="0.5"/>
+								</box>
+								<textElement verticalAlignment="Middle">
+									<font size="3" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Gastos]]></text>
+							</staticText>
+							<staticText>
+								<reportElement style="Crosstab Data Text" x="90" y="10" width="30" height="15" uuid="a1f94034-cbd4-410f-b2db-c3850434fa2e"/>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5"/>
+									<leftPen lineWidth="0.5"/>
+									<bottomPen lineWidth="0.5"/>
+									<rightPen lineWidth="0.5"/>
+								</box>
+								<textElement verticalAlignment="Middle">
+									<font size="3" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Saldo]]></text>
+							</staticText>
+						</cellContents>
+					</crosstabColumnHeader>
+					<crosstabTotalColumnHeader>
+						<cellContents backcolor="#BFE1FF" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<staticText>
+								<reportElement x="0" y="0" width="50" height="5" uuid="8f8ad4d4-d255-4e01-bea4-437af0a43de9"/>
+								<textElement textAlignment="Center" verticalAlignment="Middle"/>
+								<text><![CDATA[Total codsucursal]]></text>
+							</staticText>
+							<staticText>
+								<reportElement style="Crosstab Data Text" x="0" y="10" width="35" height="5" uuid="6814e97f-b9ae-4565-adb5-0b6e7ec74a41"/>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5"/>
+									<leftPen lineWidth="0.5"/>
+									<bottomPen lineWidth="0.5"/>
+									<rightPen lineWidth="0.5"/>
+								</box>
+								<textElement verticalAlignment="Middle">
+									<font size="3" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Cobros]]></text>
+							</staticText>
+							<staticText>
+								<reportElement style="Crosstab Data Text" x="70" y="10" width="35" height="5" uuid="d116a89a-435f-4fb9-bd3f-a9137ef9d030"/>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5"/>
+									<leftPen lineWidth="0.5"/>
+									<bottomPen lineWidth="0.5"/>
+									<rightPen lineWidth="0.5"/>
+								</box>
+								<textElement verticalAlignment="Middle">
+									<font size="3" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Gastos]]></text>
+							</staticText>
+							<staticText>
+								<reportElement style="Crosstab Data Text" x="35" y="10" width="35" height="5" uuid="570ad496-0a3d-4516-8a2c-fb4d8133a2be"/>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5"/>
+									<leftPen lineWidth="0.5"/>
+									<bottomPen lineWidth="0.5"/>
+									<rightPen lineWidth="0.5"/>
+								</box>
+								<textElement verticalAlignment="Middle">
+									<font size="3" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Desembolsos]]></text>
+							</staticText>
+							<staticText>
+								<reportElement style="Crosstab Data Text" x="105" y="10" width="35" height="5" uuid="e79d7093-c3e7-4f1a-8bab-6b90b29aebfb"/>
+								<box>
+									<pen lineWidth="0.5"/>
+									<topPen lineWidth="0.5"/>
+									<leftPen lineWidth="0.5"/>
+									<bottomPen lineWidth="0.5"/>
+									<rightPen lineWidth="0.5"/>
+								</box>
+								<textElement verticalAlignment="Middle">
+									<font size="3" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Saldo]]></text>
+							</staticText>
+						</cellContents>
+					</crosstabTotalColumnHeader>
+				</columnGroup>
+				<measure name="cobrosMeasure" class="java.math.BigDecimal" calculation="Sum">
+					<measureExpression><![CDATA[$F{cobros}]]></measureExpression>
+				</measure>
+				<measure name="desembolsoMeasure" class="java.math.BigDecimal" calculation="Sum">
+					<measureExpression><![CDATA[$F{desembolsos}]]></measureExpression>
+				</measure>
+				<measure name="gastosMeasure" class="java.math.BigDecimal" calculation="Sum">
+					<measureExpression><![CDATA[$F{gastos}]]></measureExpression>
+				</measure>
+				<measure name="saldoMeasure" class="java.math.BigDecimal" calculation="Sum">
+					<measureExpression><![CDATA[$F{saldo}]]></measureExpression>
+				</measure>
+				<crosstabCell width="120" height="6">
+					<cellContents>
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<textField pattern="#,##0.00">
+							<reportElement style="Crosstab Data Text" x="0" y="0" width="30" height="6" uuid="607fed56-569f-493f-8576-2ca45cf0b37f"/>
+							<box rightPadding="2">
+								<pen lineWidth="0.5"/>
+								<topPen lineWidth="0.5"/>
+								<leftPen lineWidth="0.5"/>
+								<bottomPen lineWidth="0.5"/>
+								<rightPen lineWidth="0.5"/>
+							</box>
+							<textElement textAlignment="Right" verticalAlignment="Middle">
+								<font size="3"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{cobrosMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00">
+							<reportElement style="Crosstab Data Text" x="30" y="0" width="30" height="6" uuid="64a276ee-3262-45ff-94c4-e66ba6d413cb"/>
+							<box rightPadding="2">
+								<pen lineWidth="0.5"/>
+								<topPen lineWidth="0.5"/>
+								<leftPen lineWidth="0.5"/>
+								<bottomPen lineWidth="0.5"/>
+								<rightPen lineWidth="0.5"/>
+							</box>
+							<textElement textAlignment="Right" verticalAlignment="Middle">
+								<font size="3"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{desembolsoMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00">
+							<reportElement style="Crosstab Data Text" x="60" y="0" width="30" height="6" uuid="cfd0e58a-35c7-4742-ae81-c38fe8ae5e59"/>
+							<box rightPadding="2">
+								<pen lineWidth="0.5"/>
+								<topPen lineWidth="0.5"/>
+								<leftPen lineWidth="0.5"/>
+								<bottomPen lineWidth="0.5"/>
+								<rightPen lineWidth="0.5"/>
+							</box>
+							<textElement textAlignment="Right" verticalAlignment="Middle">
+								<font size="3"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{gastosMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00" isBlankWhenNull="false">
+							<reportElement style="Crosstab Data Text" mode="Transparent" x="90" y="0" width="30" height="6" forecolor="#000000" backcolor="#FFFFFF" uuid="0c1fb4e3-34ad-4bc4-a7e3-5f3e27350b26"/>
+							<box rightPadding="2">
+								<pen lineWidth="0.5"/>
+								<topPen lineWidth="0.5"/>
+								<leftPen lineWidth="0.5"/>
+								<bottomPen lineWidth="0.5"/>
+								<rightPen lineWidth="0.5"/>
+							</box>
+							<textElement textAlignment="Right" verticalAlignment="Middle" rotation="None" markup="none">
+								<font fontName="SansSerif" size="3" isBold="false" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+								<paragraph lineSpacing="Single"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{saldoMeasure}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="120" height="11" rowTotalGroup="fecha">
+					<cellContents backcolor="#BFE1FF" mode="Opaque">
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<textField pattern="#,##0.00">
+							<reportElement style="Crosstab Data Text" x="0" y="0" width="30" height="6" uuid="1f0b7baa-984a-4ce9-898b-4139028067f5"/>
+							<box rightPadding="2">
+								<pen lineWidth="0.5"/>
+								<topPen lineWidth="0.5"/>
+								<leftPen lineWidth="0.5"/>
+								<bottomPen lineWidth="0.5"/>
+								<rightPen lineWidth="0.5"/>
+							</box>
+							<textElement textAlignment="Right" verticalAlignment="Middle">
+								<font size="3"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{cobrosMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00">
+							<reportElement style="Crosstab Data Text" x="30" y="0" width="30" height="6" uuid="6a8e8341-ab1d-4f9d-8b27-6bc5d94aa029"/>
+							<box rightPadding="2">
+								<pen lineWidth="0.5"/>
+								<topPen lineWidth="0.5"/>
+								<leftPen lineWidth="0.5"/>
+								<bottomPen lineWidth="0.5"/>
+								<rightPen lineWidth="0.5"/>
+							</box>
+							<textElement textAlignment="Right" verticalAlignment="Middle">
+								<font size="3"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{desembolsoMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00">
+							<reportElement style="Crosstab Data Text" x="60" y="0" width="30" height="6" uuid="432c9eb2-f734-4db9-8055-a4b09d348761"/>
+							<box rightPadding="2">
+								<pen lineWidth="0.5"/>
+								<topPen lineWidth="0.5"/>
+								<leftPen lineWidth="0.5"/>
+								<bottomPen lineWidth="0.5"/>
+								<rightPen lineWidth="0.5"/>
+							</box>
+							<textElement textAlignment="Right" verticalAlignment="Middle">
+								<font size="3"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{gastosMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00">
+							<reportElement style="Crosstab Data Text" x="90" y="0" width="30" height="6" uuid="fe3f189c-7ff3-4d70-a719-7c648897f63c"/>
+							<box rightPadding="2">
+								<pen lineWidth="0.5"/>
+								<topPen lineWidth="0.5"/>
+								<leftPen lineWidth="0.5"/>
+								<bottomPen lineWidth="0.5"/>
+								<rightPen lineWidth="0.5"/>
+							</box>
+							<textElement textAlignment="Right" verticalAlignment="Middle">
+								<font size="3"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{saldoMeasure}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="140" height="6" columnTotalGroup="sucursal">
+					<cellContents backcolor="#BFE1FF" mode="Opaque">
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<textField pattern="#,##0.00">
+							<reportElement style="Crosstab Data Text" x="0" y="0" width="35" height="6" uuid="05f0b663-e17e-4e33-a3d9-f1b0ba4ef358"/>
+							<box rightPadding="2">
+								<pen lineWidth="0.5"/>
+								<topPen lineWidth="0.5"/>
+								<leftPen lineWidth="0.5"/>
+								<bottomPen lineWidth="0.5"/>
+								<rightPen lineWidth="0.5"/>
+							</box>
+							<textElement textAlignment="Right" verticalAlignment="Middle">
+								<font size="3"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{cobrosMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00">
+							<reportElement style="Crosstab Data Text" x="35" y="0" width="35" height="6" uuid="b37979fb-c0be-4bb8-9cb6-564aa978bf3b"/>
+							<box rightPadding="2">
+								<pen lineWidth="0.5"/>
+								<topPen lineWidth="0.5"/>
+								<leftPen lineWidth="0.5"/>
+								<bottomPen lineWidth="0.5"/>
+								<rightPen lineWidth="0.5"/>
+							</box>
+							<textElement textAlignment="Right" verticalAlignment="Middle">
+								<font size="3"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{desembolsoMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00">
+							<reportElement style="Crosstab Data Text" x="105" y="0" width="35" height="6" uuid="a24fc183-41ac-4beb-ac65-9e75cb6f73b7"/>
+							<box rightPadding="2">
+								<pen lineWidth="0.5"/>
+								<topPen lineWidth="0.5"/>
+								<leftPen lineWidth="0.5"/>
+								<bottomPen lineWidth="0.5"/>
+								<rightPen lineWidth="0.5"/>
+							</box>
+							<textElement textAlignment="Right" verticalAlignment="Middle">
+								<font size="3"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{saldoMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00">
+							<reportElement style="Crosstab Data Text" x="70" y="0" width="35" height="6" uuid="db974ae6-95bf-485d-94c6-01763d73b855"/>
+							<box rightPadding="2">
+								<pen lineWidth="0.5"/>
+								<topPen lineWidth="0.5"/>
+								<leftPen lineWidth="0.5"/>
+								<bottomPen lineWidth="0.5"/>
+								<rightPen lineWidth="0.5"/>
+							</box>
+							<textElement textAlignment="Right" verticalAlignment="Middle">
+								<font size="3"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{gastosMeasure}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="140" height="11" rowTotalGroup="fecha" columnTotalGroup="sucursal">
+					<cellContents backcolor="#BFE1FF" mode="Opaque">
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<textField>
+							<reportElement style="Crosstab Data Text" x="0" y="0" width="35" height="6" uuid="2d8d72a2-9b74-4dc5-9bce-48e85abb2ea1"/>
+							<box rightPadding="2">
+								<pen lineWidth="0.5"/>
+								<topPen lineWidth="0.5"/>
+								<leftPen lineWidth="0.5"/>
+								<bottomPen lineWidth="0.5"/>
+								<rightPen lineWidth="0.5"/>
+							</box>
+							<textElement textAlignment="Right" verticalAlignment="Middle">
+								<font size="3" isBold="true"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{cobrosMeasure}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement style="Crosstab Data Text" x="35" y="0" width="35" height="6" uuid="bbc33cc4-f48c-46a3-941f-288f09081451"/>
+							<box rightPadding="2">
+								<pen lineWidth="0.5"/>
+								<topPen lineWidth="0.5"/>
+								<leftPen lineWidth="0.5"/>
+								<bottomPen lineWidth="0.5"/>
+								<rightPen lineWidth="0.5"/>
+							</box>
+							<textElement textAlignment="Right" verticalAlignment="Middle">
+								<font size="3" isBold="true"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{desembolsoMeasure}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement style="Crosstab Data Text" x="70" y="0" width="35" height="6" uuid="21bab0e9-b2bc-4bcd-a4d4-03e921784395"/>
+							<box rightPadding="2">
+								<pen lineWidth="0.5"/>
+								<topPen lineWidth="0.5"/>
+								<leftPen lineWidth="0.5"/>
+								<bottomPen lineWidth="0.5"/>
+								<rightPen lineWidth="0.5"/>
+							</box>
+							<textElement textAlignment="Right" verticalAlignment="Middle">
+								<font size="3" isBold="true"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{gastosMeasure}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement style="Crosstab Data Text" x="105" y="0" width="35" height="6" uuid="2d646090-a618-4361-a6d3-46d53b4e3fc5"/>
+							<box rightPadding="2">
+								<pen lineWidth="0.5"/>
+								<topPen lineWidth="0.5"/>
+								<leftPen lineWidth="0.5"/>
+								<bottomPen lineWidth="0.5"/>
+								<rightPen lineWidth="0.5"/>
+							</box>
+							<textElement textAlignment="Right" verticalAlignment="Middle">
+								<font size="3" isBold="true"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{cobrosMeasure}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+			</crosstab>
+		</band>
+	</summary>
+</jasperReport>

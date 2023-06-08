@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="entregas-cierre-sucursal" language="groovy" pageWidth="792" pageHeight="612" orientation="Landscape" columnWidth="752" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="aaaa8d96-6303-4767-87b3-6c15fd67e9eb">
+	<property name="ireport.zoom" value="1.0"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<parameter name="fecha" class="java.util.Date">
+		<defaultValueExpression><![CDATA[]]></defaultValueExpression>
+	</parameter>
+	<parameter name="orgid" class="java.math.BigDecimal">
+		<defaultValueExpression><![CDATA[]]></defaultValueExpression>
+	</parameter>
+	<queryString>
+		<![CDATA[with sortedpayments as (
+select bac.c_bankaccount_id, bac.value as codigocaja, bac.name as nombrecaja, pay.documentno,
+ch.c_charge_id,
+ch.name as cargo,
+dt.docbasetype,
+case when dt.docbasetype = 'ARR' then 'Ingreso' else 'Egreso' end as tipomov,
+pay.payamt as monto,
+case when dt.docbasetype = 'ARR' and pay.c_charge_id = 1000034 then pay.payamt else 0.00 end as basediaria,
+case when dt.docbasetype = 'APP' and pay.c_charge_id = 1000030 then pay.payamt else 0.00 end as desembolsos,
+case when dt.docbasetype = 'ARR' and pay.c_invoice_id is not null then pay.payamt else 0.00 end as cobros,
+case when dt.docbasetype = 'APP' and pay.c_charge_id not in (1000034,1000030) then pay.payamt else 0.00 end as gastos,
+case when dt.docbasetype = 'ARR' and pay.c_charge_id = 1000034 then pay.payamt else 0.00 end as recibidos,
+case when ( dt.docbasetype = 'APP' and pay.c_charge_id = 1000034) then pay.payamt else 0.00 end as enviados,
+case when ( dt.docbasetype = 'APP' and pay.c_charge_id = 1000034 and bac.description ~* 'sucursal') then pay.payamt else 0.00 end as enviados_central,
+bac.description as tipocaja,
+org.name as orgname
+from c_bankaccount bac
+inner join c_payment pay on pay.c_bankaccount_id = bac.c_bankaccount_id
+inner join c_doctype dt on pay.c_doctype_id = dt.c_doctype_id
+left join c_charge ch on pay.c_charge_id = ch.c_charge_id
+inner join ad_org org on pay.ad_org_id = org.ad_org_id
+where pay.dateacct::date = $P{fecha}::date
+and pay.ad_org_id = $P{orgid}
+-- and bac.description ~* 'cobrador'
+and pay.docstatus in ('CO', 'CL')
+)
+
+select sp.c_bankaccount_id, sp.codigocaja, sp.nombrecaja,
+sp.orgname,
+sum(sp.basediaria) as basediaria,
+sum(sp.desembolsos) as desembolsos,
+sum(sp.cobros) as cobros,
+sum(sp.gastos) as gastos,
+sum(sp.basediaria - sp.desembolsos + sp.cobros - sp.gastos) as efectivo,
+sum(sp.recibidos) as recibidos,
+sum(sp.enviados) as enviados,
+sum(sp.enviados_central) as enviados_central,
+sum(sp.basediaria - sp.desembolsos + sp.cobros - sp.gastos) - sum(sp.enviados) as saldocaja,
+(select bactrans.c_bankaccount_id from c_bankaccount bactrans
+ 	where bactrans.ad_org_id = org.ad_org_id and bactrans.description ~* 'sucursal') as cajadestinoid,
+(select bactrans.value || '-' || bactrans.name from c_bankaccount bactrans
+ 	where bactrans.ad_org_id = org.ad_org_id and bactrans.description ~* 'sucursal') as cajadestinoname,
+sp.tipocaja
+from sortedpayments sp
+inner join c_bankaccount bac on sp.c_bankaccount_id = bac.c_bankaccount_id
+inner join ad_org org on bac.ad_org_id = org.ad_org_id
+group by sp.c_bankaccount_id, sp.codigocaja, sp.nombrecaja, org.ad_org_id, sp.tipocaja, sp.orgname]]>
+	</queryString>
+	<field name="c_bankaccount_id" class="java.math.BigDecimal"/>
+	<field name="codigocaja" class="java.lang.String"/>
+	<field name="nombrecaja" class="java.lang.String"/>
+	<field name="orgname" class="java.lang.String"/>
+	<field name="basediaria" class="java.math.BigDecimal"/>
+	<field name="desembolsos" class="java.math.BigDecimal"/>
+	<field name="cobros" class="java.math.BigDecimal"/>
+	<field name="gastos" class="java.math.BigDecimal"/>
+	<field name="efectivo" class="java.math.BigDecimal"/>
+	<field name="recibidos" class="java.math.BigDecimal"/>
+	<field name="enviados" class="java.math.BigDecimal"/>
+	<field name="enviados_central" class="java.math.BigDecimal"/>
+	<field name="saldocaja" class="java.math.BigDecimal"/>
+	<field name="cajadestinoid" class="java.math.BigDecimal"/>
+	<field name="cajadestinoname" class="java.lang.String"/>
+	<field name="tipocaja" class="java.lang.String"/>
+	<variable name="basediaria_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{basediaria}]]></variableExpression>
+	</variable>
+	<variable name="desembolsos_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{desembolsos}]]></variableExpression>
+	</variable>
+	<variable name="cobros_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{cobros}]]></variableExpression>
+	</variable>
+	<variable name="gastos_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{gastos}]]></variableExpression>
+	</variable>
+	<variable name="efectivo_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{efectivo}]]></variableExpression>
+	</variable>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="89" splitType="Stretch">
+			<staticText>
+				<reportElement x="0" y="0" width="572" height="20" uuid="270fdc38-4b6d-418f-8767-194c2c76f2cd"/>
+				<textElement verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[CREDIVELOZ]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="20" width="572" height="20" uuid="aa85007b-7a10-486b-8960-4175270f310f"/>
+				<textElement verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[INFORME DE CIERRE ENTREGA COBRADORES]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="0" y="40" width="572" height="20" uuid="d5e8a34e-e62e-41e5-9fef-b72dbb376c84"/>
+				<textElement verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA["CRÉDITOS DEL "
++ ( new SimpleDateFormat("dd/MM/YYY").format($P{fecha}))]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="0" y="60" width="572" height="20" uuid="c0f3735c-78ac-4910-884c-3585a8d90926"/>
+				<textElement verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA["SUCURSAL: " + $F{orgname}]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<pageHeader>
+		<band height="35" splitType="Stretch"/>
+	</pageHeader>
+	<columnHeader>
+		<band height="20" splitType="Stretch">
+			<staticText>
+				<reportElement x="0" y="0" width="93" height="20" uuid="5ace5830-ded6-45a5-9f38-9627c80fa243"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Código]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="93" y="0" width="141" height="20" uuid="c939ac02-66c1-4b3d-a265-ee199b362255"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Nombre Caja]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="234" y="0" width="65" height="20" uuid="16f03f33-9078-4440-a131-7ad80da4cafa"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Base Diaria]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="299" y="0" width="65" height="20" uuid="b84b5315-e483-48da-8ceb-8800500c3de8"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Desembolsos]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="364" y="0" width="65" height="20" uuid="0321f1f0-f375-45d0-9f64-f0a0c44d87c9"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Cobros]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="429" y="0" width="65" height="20" uuid="47902988-723d-470b-a580-510bcb6c5f34"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Gastos]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="494" y="0" width="65" height="20" uuid="40f4b31b-9288-46e8-bc26-5a1a194565b9"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Efectivo]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Transparent" x="559" y="0" width="65" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="f741e11a-33d0-4a53-850d-25e5b9da0de7"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="8" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<text><![CDATA[Enviados / OC]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Transparent" x="624" y="0" width="65" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="2706158b-120e-407e-9cb1-b8d4c1d25e4c"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="8" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<text><![CDATA[Env. Caja Central]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Transparent" x="687" y="0" width="65" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="b0a99672-8255-4d99-8b4b-1a77ac174599"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="8" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<text><![CDATA[Saldo]]></text>
+			</staticText>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="33" splitType="Stretch">
+			<textField>
+				<reportElement x="0" y="0" width="93" height="14" uuid="ddc5c3d9-6a9f-438d-bd67-99d72d8dd299"/>
+				<textElement verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{codigocaja}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="93" y="0" width="141" height="14" uuid="f95c53dc-c7e7-43c6-8002-402b19504a82"/>
+				<textElement verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{nombrecaja}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00">
+				<reportElement x="234" y="0" width="65" height="14" uuid="aa40d7ab-dce3-497e-b328-9fee72b7b68f"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{basediaria}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00">
+				<reportElement x="299" y="0" width="65" height="14" uuid="3939cdf8-4ad3-4c5a-870c-8e1004405f8c"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{desembolsos}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00">
+				<reportElement x="364" y="0" width="65" height="14" uuid="7425e119-9dc5-4dc1-9471-5899972b38b0"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{cobros}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00">
+				<reportElement x="429" y="0" width="65" height="14" uuid="7b7084ba-974b-4f30-8d2d-31ed51a246e9"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{gastos}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00">
+				<reportElement x="494" y="0" width="65" height="14" uuid="3dd6fce0-52de-43b3-a93c-cd13d8c23b46"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{efectivo}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="false">
+				<reportElement mode="Transparent" x="559" y="0" width="65" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="4ff6ed8f-23d6-4324-9ad6-c40c8e796fd0"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="8" isBold="false" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{enviados}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="false">
+				<reportElement mode="Transparent" x="624" y="0" width="65" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="4cd611fa-94f6-42aa-888c-9a4e7ccd8f7a"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="8" isBold="false" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{enviados_central}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="false">
+				<reportElement mode="Transparent" x="689" y="0" width="65" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="cc59fcf7-c58d-4424-81f7-7c9bffe20256"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="8" isBold="false" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{saldocaja}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<summary>
+		<band height="36" splitType="Stretch">
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="234" y="0" width="65" height="20" uuid="6c5b50e6-e086-47b2-9434-c5364694c82e"/>
+				<box rightPadding="2"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{basediaria_1}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="299" y="0" width="65" height="20" uuid="88cdc922-55e4-4685-87cd-f41e531d5b75"/>
+				<box rightPadding="2"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{desembolsos_1}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="364" y="0" width="65" height="20" uuid="84f68193-8039-4d86-86c2-f95a5f988f6d"/>
+				<box rightPadding="2"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{cobros_1}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="429" y="0" width="65" height="20" uuid="4f6c1962-a814-4ab8-97f1-74e2c9208c20"/>
+				<box rightPadding="2"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{gastos_1}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="494" y="0" width="65" height="20" uuid="fbcba136-bccc-401e-8ad6-576869149026"/>
+				<box rightPadding="2"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{efectivo_1}]]></textFieldExpression>
+			</textField>
+		</band>
+	</summary>
+</jasperReport>
