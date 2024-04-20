@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="promotoria" language="groovy" pageWidth="842" pageHeight="595" orientation="Landscape" columnWidth="802" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" isIgnorePagination="true" uuid="fa0a4bea-11ae-4e8f-97c0-e687ee12f397">
+	<property name="ireport.zoom" value="2.5937424601000028"/>
+	<property name="ireport.x" value="1160"/>
+	<property name="ireport.y" value="0"/>
+	<parameter name="idsucursal" class="java.math.BigDecimal"/>
+	<parameter name="montoresidual" class="java.math.BigDecimal"/>
+	<queryString>
+		<![CDATA[-- 20230609 - first version
+with
+org as (select * from ad_org where ad_org_id = $P{idsucursal} ),
+datauniverse as (
+select distinct
+bp.c_bpartner_id,
+bp.value as codcliente,
+bp.name as nombre,
+bp.quickphone as telefono,
+bp.quickaddress as direccion,
+ru.name as ruta,
+(select dcar.legacy_cartera_id from legacy_cartera dcar where dcar.c_bpartner_id = bp.c_bpartner_id order by dcar.fecha desc limit 1) as ud_id,
+(select dcar.dias_cre from legacy_cartera dcar where dcar.c_bpartner_id = bp.c_bpartner_id order by dcar.fecha desc limit 1) as dias_cre,
+(select fecha::date from legacy_cartera dcar where dcar.c_bpartner_id = bp.c_bpartner_id order by dcar.fecha desc limit 1) as ultimodesembolso,
+(select sum(mcar.montototal) from legacy_cartera mcar where mcar.c_bpartner_id = bp.c_bpartner_id) as montototal,
+(select sum(mcob.abono) from legacy_cobro mcob where mcob.c_bpartner_id = bp.c_bpartner_id) as cobrototal,
+(select sum(mcar.montototal) from legacy_cartera mcar where mcar.c_bpartner_id = bp.c_bpartner_id) -
+(select sum(mcob.abono) from legacy_cobro mcob where mcob.c_bpartner_id = bp.c_bpartner_id) as saldototal,
+(select sum(mcar.montototal-mcar.monto) from legacy_cartera mcar where mcar.c_bpartner_id = bp.c_bpartner_id) as interestotal
+from c_bpartner bp
+inner join cv_ruta ru on bp.cv_ruta_id = ru.cv_ruta_id
+where bp.ad_org_trx_id = $P{idsucursal}
+)
+select org.name as orgname, du.*,
+daysbetween(
+(select operacion
+from legacy_cobro cobf
+where cobf.id_cartera = du.ud_id
+and cobf.abono > 0
+order by cobf.operacion desc limit 1),add_business_day( du.ultimodesembolso::date, du.dias_cre) ) as dias_retraso
+ from datauniverse du, org
+where du.saldototal <= $P{montoresidual}
+order by du.saldototal asc, du.ultimodesembolso desc]]>
+	</queryString>
+	<field name="orgname" class="java.lang.String"/>
+	<field name="c_bpartner_id" class="java.math.BigDecimal"/>
+	<field name="codcliente" class="java.lang.String"/>
+	<field name="nombre" class="java.lang.String"/>
+	<field name="telefono" class="java.lang.String"/>
+	<field name="direccion" class="java.lang.String"/>
+	<field name="ruta" class="java.lang.String"/>
+	<field name="ud_id" class="java.lang.Long"/>
+	<field name="dias_cre" class="java.lang.Integer"/>
+	<field name="ultimodesembolso" class="java.sql.Date"/>
+	<field name="montototal" class="java.math.BigDecimal"/>
+	<field name="cobrototal" class="java.math.BigDecimal"/>
+	<field name="saldototal" class="java.math.BigDecimal"/>
+	<field name="interestotal" class="java.math.BigDecimal"/>
+	<field name="dias_retraso" class="java.lang.Integer"/>
+	<title>
+		<band height="65" splitType="Stretch">
+			<staticText>
+				<reportElement x="0" y="20" width="65" height="20" uuid="5902feb8-5f72-46a0-8cd1-4358e5af10f0"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial Narrow" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Promotoría]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="0" width="65" height="20" uuid="6037b7be-93eb-49dc-80ac-c43f5f95cff0"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial Narrow" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Crediveloz]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="0" y="40" width="194" height="20" uuid="fc852372-daf6-4c06-8cbc-da8337440d79"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial Narrow" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA["SUCURSAL: " + $F{orgname}]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<columnHeader>
+		<band height="22">
+			<staticText>
+				<reportElement x="0" y="0" width="65" height="20" uuid="4e4bf161-4de8-4633-8606-76fd2c328f89"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Código]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="65" y="0" width="129" height="20" uuid="bbbd5487-5ac0-4142-83af-2404e5f3b47f"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Nombre]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="194" y="0" width="77" height="20" uuid="0f4722a8-7063-496e-aff8-c6d0a6837105"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Teléfono]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="271" y="0" width="185" height="20" uuid="42ca858c-deb4-4594-a852-16f389efcf2b"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Dirección]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="456" y="0" width="71" height="20" uuid="a9e2c354-89e9-4435-abce-47e17c6da465"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Ruta]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="527" y="0" width="35" height="20" uuid="3dff4a1c-679e-4dc2-b428-cd38cce17e32"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Último Desembolso]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="562" y="0" width="45" height="20" uuid="2836b415-f37d-4997-acfc-af003e43639f"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Monto Total]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="607" y="0" width="45" height="20" uuid="b1bbed0d-acaf-43b7-84f7-20abb279e092"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Cobro Total]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="652" y="0" width="45" height="20" uuid="63d806e0-18ed-4714-96d8-42690d83c451"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Saldo Total]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="697" y="0" width="45" height="20" uuid="1f714367-2e89-4a6a-93fb-94facf20934c"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Interés Total]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="742" y="0" width="45" height="20" uuid="625d3f01-dc44-4639-be78-8a406081d9cf"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Cumplimiento
+Último Desembolso]]></text>
+			</staticText>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="16" splitType="Stretch">
+			<textField>
+				<reportElement x="0" y="0" width="65" height="15" uuid="3325cd04-3e05-43fc-930f-09623d1afb38"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{codcliente}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="65" y="0" width="129" height="15" uuid="fc1ba95b-5814-48f9-9bc5-258d3f17bf31"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{nombre}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="194" y="0" width="77" height="15" uuid="7de7678d-a44f-4022-b76c-2e34082ce664"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{telefono}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="271" y="0" width="185" height="15" uuid="c613023c-bd14-44dc-afd2-50d99052db11"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{direccion}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="456" y="0" width="71" height="15" uuid="7ce04aa2-cd72-47cc-8d0e-bc4c057ebc72"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{ruta}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="527" y="0" width="35" height="15" uuid="7e064a33-e658-493b-a480-db597e40c9a3"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{ultimodesembolso}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;-#,##0.00">
+				<reportElement x="562" y="0" width="45" height="15" uuid="098f460f-ced3-479b-b3c5-7fdda0944db1"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{montototal}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;-#,##0.00">
+				<reportElement x="607" y="0" width="45" height="15" uuid="e4a6140e-a537-4899-9b5a-aedbea5637b6"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{cobrototal}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;-#,##0.00">
+				<reportElement x="652" y="0" width="45" height="15" uuid="cb0fe93e-e8b2-4720-a0af-00c057076cf2"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{saldototal}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;-#,##0.00">
+				<reportElement x="697" y="0" width="45" height="15" uuid="bec05cb5-3a42-4d49-b830-7a95deff50ad"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{interestotal}]]></textFieldExpression>
+			</textField>
+			<textField pattern="">
+				<reportElement x="742" y="0" width="45" height="15" uuid="135315bb-a03d-4474-834a-98d84f7ecf54"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{dias_retraso}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<summary>
+		<band splitType="Stretch"/>
+	</summary>
+</jasperReport>

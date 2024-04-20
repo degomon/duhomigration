@@ -2,6 +2,8 @@
 Proceso para aprobar una Solicitud de Cliente vía web
 a partir de cv_solicitudbp
 @Name: AprobarSolicitudBP
+20240219 - Bypasss genero y tipo localizacion si no existen
+20240219 - Se incorporan campos genero y tipo localizacion
 20210817 - Verificar que cédula no exista
 20210730 - Bridge from legacy_cliente to C_BPartner
 **/
@@ -65,6 +67,8 @@ int idruta = solicitudBP.get_ValueAsInt("idruta");
 int idrubro = solicitudBP.get_ValueAsInt("idrubro");
 BigDecimal monto = (BigDecimal) solicitudBP.get_Value("monto");
 String procesado = solicitudBP.get_ValueAsString("synced");
+String genero = solicitudBP.get_ValueAsString("genero");
+String tipoLocalizacion = solicitudBP.get_ValueAsString("tipo_localizacion");
 
 // Ver si el BP existe por Cédula
 MBPartner bpCed = new Query(A_Ctx, "C_BPartner", "taxid = ?", A_TrxName)
@@ -104,6 +108,16 @@ bp.set_ValueOfColumn("quickaddress", direccion);
 bp.set_ValueOfColumn("quickphone", telefono );
 bp.set_ValueOfColumn("ad_org_trx_id", solicitudBP.getAD_Org_ID());
 bp.set_ValueOfColumn("cv_ruta_id", idruta);
+if(null!=genero && genero.length()>0){
+    log.log(Level.INFO, ">> Genero: " + genero);
+    bp.set_ValueOfColumn("genero", genero);
+}
+    
+if(null!=tipoLocalizacion && tipoLocalizacion.length()>0){
+    log.log(Level.INFO, ">> Tipo Localizacion: " + tipoLocalizacion);
+    bp.set_ValueOfColumn("tipo_localizacion", tipoLocalizacion);
+}
+    
 bp.setC_BP_Group_ID(idrubro);
 bp.setSO_CreditLimit(monto);
 bp.save(A_TrxName);

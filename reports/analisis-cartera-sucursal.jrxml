@@ -100,10 +100,10 @@ where rs.saldo <> 0
 select ch.ruta,
 ch.yy_fecha,
 count(ch.recid) as totalcreditos,
-count(ch.recid) filter (where ch.diasvencimiento > 30) as creditosvencidos,
+count(ch.recid) filter (where ch.diasvencimiento > 15) as creditosvencidos,
 sum(ch.debito) as debito,
 sum(ch.saldo) as saldo_cxc,
-sum(ch.saldo) filter (where ch.diasvencimiento > 30) as saldo_vencido
+sum(ch.saldo) filter (where ch.diasvencimiento > 15) as saldo_vencido
 from credihist ch
 group by ch.ruta, ch.yy_fecha
 order by ch.yy_fecha, ch.ruta]]>
@@ -141,7 +141,8 @@ order by ch.yy_fecha, ch.ruta]]>
 		<defaultValueExpression><![CDATA[]]></defaultValueExpression>
 	</parameter>
 	<queryString>
-		<![CDATA[with rawsaldos as (
+		<![CDATA[-- 20230609 - en dsResumen se cambia valor de días para alerta vencimiento a 15
+with rawsaldos as (
 select
 car.legacy_cartera_id as recid,
 car.fecha::date as fecha,

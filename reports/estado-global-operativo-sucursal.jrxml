@@ -1,0 +1,465 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="estado-global-operativo-sucursal" language="groovy" pageWidth="792" pageHeight="612" orientation="Landscape" columnWidth="762" leftMargin="15" rightMargin="15" topMargin="20" bottomMargin="20" uuid="08825910-8b06-44e0-aab7-2ad40790e059">
+	<property name="ireport.zoom" value="1.5"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<parameter name="fechainicial" class="java.util.Date"/>
+	<parameter name="fechafinal" class="java.util.Date"/>
+	<parameter name="AD_PINSTANCE_ID" class="java.lang.Integer"/>
+	<queryString>
+		<![CDATA[/**
+@author: dgonzalez
+Reporte para conocer el Estado Global de las sucursales
+20210816 -> reconstruimos para poder Cajas de Cobradores
+**/
+with tenant as (
+select
+conf.value::json ->> 'logo-url' as logourl,
+conf.value::json ->> 'company-name' as companyname
+from ad_pinstance pin
+inner join ad_client cli on pin.ad_client_id = cli.ad_client_id
+inner join AD_SysConfig conf on cli.ad_client_id = conf.ad_client_id and conf.name = 'DEVM_CONF'
+where pin.ad_pinstance_id = $P{AD_PINSTANCE_ID}
+)
+
+select org.ad_org_id,
+org.name as sucursal,
+bac.value as codcaja,
+bac.name as nombrecaja,
+coalesce( sum (pay.payamt)
+FILTER (where pay.dateacct::date < $P{fechainicial}::date and dt.docbasetype = 'ARR'),0.00 )
+-
+coalesce( sum (pay.payamt)
+FILTER (where pay.dateacct::date < $P{fechainicial}::date and dt.docbasetype = 'APP'), 0.00 ) as inicial,
+
+coalesce( sum (pay.payamt)
+FILTER (where pay.dateacct::date between $P{fechainicial}::date and $P{fechafinal}::date
+and cht.description ~* 'transfer'
+and dt.docbasetype = 'ARR'), 0.00) as ingresos_transfer,
+
+coalesce( sum (pay.payamt)
+FILTER (where pay.dateacct::date between $P{fechainicial}::date and $P{fechafinal}::date
+and (cht.description ~* 'inout' or pay.C_DocType_ID=1000050) -- Cargo para Recibos de Cliente
+and dt.docbasetype = 'ARR'), 0.00) as cobros,
+
+coalesce( sum (pay.payamt)
+FILTER (where pay.dateacct::date between $P{fechainicial}::date and $P{fechafinal}::date
+and cht.description ~* 'transfer'
+and dt.docbasetype = 'APP'), 0.00) as egresos_transfer,
+
+coalesce( sum (pay.payamt)
+FILTER (where pay.dateacct::date between $P{fechainicial}::date and $P{fechafinal}::date
+and ( pay.c_doctype_id = 1000009 and pay.c_charge_id not in (  1000034 ) )
+and dt.docbasetype = 'APP'), 0.00) as gastos,
+
+coalesce( sum (pay.payamt)
+FILTER (where pay.dateacct::date between $P{fechainicial}::date and $P{fechafinal}::date
+and pay.c_doctype_id = 1000049
+and dt.docbasetype = 'APP'), 0.00) as desembolsos,
+
+coalesce( sum (pay.payamt)
+FILTER (where pay.dateacct::date <= $P{fechafinal}::date and dt.docbasetype = 'ARR'),0.00 )
+-
+coalesce( sum (pay.payamt)
+FILTER (where pay.dateacct::date <= $P{fechafinal}::date and dt.docbasetype = 'APP'), 0.00 ) as final,
+ten.*
+
+
+from tenant ten, ad_org org
+inner join c_payment pay on org.ad_org_id = pay.ad_org_id
+inner join c_doctype dt on pay.c_doctype_id = dt.c_doctype_id
+inner join c_bankaccount bac on pay.c_bankaccount_id = bac.c_bankaccount_id
+left join c_charge ch on pay.c_charge_id = ch.c_charge_id
+left join c_chargetype cht on ch.c_chargetype_id = cht.c_chargetype_id
+where org.ad_client_id = 1000000
+and pay.docstatus in ('CO', 'CL')
+and pay.dateacct::date <= $P{fechafinal}::date
+and bac.c_bankaccount_id > 1000000
+and bac.description ~* 'cobrador'
+group by bac.value, bac.name, org.ad_org_id, org.name, ten.logourl, ten.companyname
+order by org.name, bac.value]]>
+	</queryString>
+	<field name="ad_org_id" class="java.math.BigDecimal"/>
+	<field name="sucursal" class="java.lang.String"/>
+	<field name="codcaja" class="java.lang.String"/>
+	<field name="nombrecaja" class="java.lang.String"/>
+	<field name="inicial" class="java.math.BigDecimal"/>
+	<field name="ingresos_transfer" class="java.math.BigDecimal"/>
+	<field name="cobros" class="java.math.BigDecimal"/>
+	<field name="egresos_transfer" class="java.math.BigDecimal"/>
+	<field name="gastos" class="java.math.BigDecimal"/>
+	<field name="desembolsos" class="java.math.BigDecimal"/>
+	<field name="final" class="java.math.BigDecimal"/>
+	<field name="logourl" class="java.lang.String"/>
+	<field name="companyname" class="java.lang.String"/>
+	<variable name="inicial_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{inicial}]]></variableExpression>
+	</variable>
+	<variable name="ingresos_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{ingresos_transfer}]]></variableExpression>
+	</variable>
+	<variable name="cobros_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{cobros}]]></variableExpression>
+	</variable>
+	<variable name="gastos_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{gastos}]]></variableExpression>
+	</variable>
+	<variable name="desembolsos_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{desembolsos}]]></variableExpression>
+	</variable>
+	<variable name="final_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{final}]]></variableExpression>
+	</variable>
+	<variable name="egresos_transfer_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{egresos_transfer}]]></variableExpression>
+	</variable>
+	<variable name="inicial_2" class="java.math.BigDecimal" resetType="Group" resetGroup="grpSucursal" calculation="Sum">
+		<variableExpression><![CDATA[$F{inicial}]]></variableExpression>
+	</variable>
+	<variable name="ingresos_transfer_1" class="java.math.BigDecimal" resetType="Group" resetGroup="grpSucursal" calculation="Sum">
+		<variableExpression><![CDATA[$F{ingresos_transfer}]]></variableExpression>
+	</variable>
+	<variable name="cobros_2" class="java.math.BigDecimal" resetType="Group" resetGroup="grpSucursal" calculation="Sum">
+		<variableExpression><![CDATA[$F{cobros}]]></variableExpression>
+	</variable>
+	<variable name="egresos_transfer_2" class="java.math.BigDecimal" resetType="Group" resetGroup="grpSucursal" calculation="Sum">
+		<variableExpression><![CDATA[$F{egresos_transfer}]]></variableExpression>
+	</variable>
+	<variable name="gastos_2" class="java.math.BigDecimal" resetType="Group" resetGroup="grpSucursal" calculation="Sum">
+		<variableExpression><![CDATA[$F{gastos}]]></variableExpression>
+	</variable>
+	<variable name="desembolsos_2" class="java.math.BigDecimal" resetType="Group" resetGroup="grpSucursal" calculation="Sum">
+		<variableExpression><![CDATA[$F{desembolsos}]]></variableExpression>
+	</variable>
+	<variable name="final_2" class="java.math.BigDecimal" resetType="Group" resetGroup="grpSucursal" calculation="Sum">
+		<variableExpression><![CDATA[$F{final}]]></variableExpression>
+	</variable>
+	<group name="grpSucursal">
+		<groupExpression><![CDATA[$F{sucursal}]]></groupExpression>
+		<groupHeader>
+			<band height="5"/>
+		</groupHeader>
+		<groupFooter>
+			<band height="40">
+				<textField pattern="#,##0.00;(#,##0.00)" isBlankWhenNull="false">
+					<reportElement mode="Transparent" x="243" y="0" width="72" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="b7b756e2-fbb6-4fca-9c51-0f05d91e961c"/>
+					<box rightPadding="4"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle" rotation="None" markup="none">
+						<font fontName="SansSerif" size="6" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+						<paragraph lineSpacing="Single"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{inicial_2}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00;(#,##0.00)" isBlankWhenNull="false">
+					<reportElement mode="Transparent" x="315" y="0" width="68" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="6021385f-09da-4a0b-8bad-8286b2528c87"/>
+					<box rightPadding="4"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle" rotation="None" markup="none">
+						<font fontName="SansSerif" size="6" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+						<paragraph lineSpacing="Single"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{ingresos_transfer_1}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00;(#,##0.00)" isBlankWhenNull="false">
+					<reportElement mode="Transparent" x="383" y="0" width="68" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="c1f77f3e-d3b4-49db-aa89-8328aca4c6b7"/>
+					<box rightPadding="4"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle" rotation="None" markup="none">
+						<font fontName="SansSerif" size="6" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+						<paragraph lineSpacing="Single"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{cobros_2}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00;(#,##0.00)" isBlankWhenNull="false">
+					<reportElement mode="Transparent" x="451" y="0" width="68" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="ac23b7cd-5e4f-4d63-a27a-9bfdeb4cc765"/>
+					<box rightPadding="4"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle" rotation="None" markup="none">
+						<font fontName="SansSerif" size="6" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+						<paragraph lineSpacing="Single"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{egresos_transfer_2}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00;(#,##0.00)" isBlankWhenNull="false">
+					<reportElement mode="Transparent" x="519" y="0" width="68" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="ec213316-b541-458a-ba99-637034ae27b9"/>
+					<box rightPadding="4"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle" rotation="None" markup="none">
+						<font fontName="SansSerif" size="6" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+						<paragraph lineSpacing="Single"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{gastos_2}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00;(#,##0.00)" isBlankWhenNull="false">
+					<reportElement mode="Transparent" x="587" y="0" width="68" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="dd251226-68ae-4bea-b920-65975f9101a3"/>
+					<box rightPadding="4"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle" rotation="None" markup="none">
+						<font fontName="SansSerif" size="6" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+						<paragraph lineSpacing="Single"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{desembolsos_2}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00;(#,##0.00)" isBlankWhenNull="false">
+					<reportElement mode="Transparent" x="655" y="0" width="72" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="397521c8-5317-4530-b989-dd72404d7044"/>
+					<box rightPadding="4"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle" rotation="None" markup="none">
+						<font fontName="SansSerif" size="6" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+						<paragraph lineSpacing="Single"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{final_2}]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="0" y="0" width="243" height="20" uuid="3305e4d6-6c31-4410-a347-9b3ae812eadb"/>
+					<box rightPadding="10"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font size="6" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["Total " + $F{sucursal} + ":"]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupFooter>
+	</group>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="70" splitType="Stretch">
+			<textField>
+				<reportElement x="0" y="40" width="762" height="20" uuid="8403bdf0-b5a3-44b4-8460-c6db9700253c"/>
+				<textElement verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA["MOVIMIENTOS DESDE EL "
++ ( new SimpleDateFormat("dd/MM/YYY").format($P{fechainicial}))
++ " HASTA "
++ ( new SimpleDateFormat("dd/MM/YYY").format( $P{fechafinal} ))]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="0" y="0" width="762" height="20" uuid="1233f490-778f-4b9f-b888-88cd8c1337f4"/>
+				<textElement verticalAlignment="Middle" markup="none">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{companyname}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="0" y="20" width="762" height="20" uuid="a4790329-19d3-4ffb-a83e-5f2b775588af"/>
+				<textElement verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[REPORTE DE ESTADO OPERATIVO POR SUCURSAL]]></text>
+			</staticText>
+		</band>
+	</title>
+	<columnHeader>
+		<band height="38" splitType="Stretch">
+			<staticText>
+				<reportElement x="143" y="0" width="100" height="35" uuid="c0dfedb3-af6d-4348-ae27-7ff008f9d9ed"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Caja]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="243" y="0" width="72" height="35" uuid="7a513a23-a8f8-432c-9ea5-2299c37095b4"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Inicial]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="315" y="0" width="68" height="35" uuid="d386d150-2261-4abb-88a0-bc1c7bb5bd35"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Ingresos
+(Transferencias +)]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="383" y="0" width="68" height="35" uuid="f5447084-c62e-46e3-94b7-5673becbf0fe"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Ingresos por Cobros]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="519" y="0" width="68" height="35" uuid="286ce139-9597-479f-b341-94c68ae63777"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Egresos por Gastos]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="587" y="0" width="68" height="35" uuid="d1595910-f3e0-44c3-b846-7a99f3e19104"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Egresos por Desembolsos]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="655" y="0" width="72" height="35" uuid="d2c8b72b-bd23-4260-86fb-3963af42d86e"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Final]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="451" y="0" width="68" height="35" uuid="c37b128d-4611-4141-af85-f5f25e991780"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Egresos
+(Transferencias -)]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="0" width="143" height="35" uuid="ac82017a-4390-4637-adf8-db23db47abf2"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Sucursal]]></text>
+			</staticText>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="20" splitType="Stretch">
+			<textField>
+				<reportElement x="143" y="0" width="100" height="20" uuid="677c88d5-1ce6-4048-8351-a4c8b2deae8b"/>
+				<textElement verticalAlignment="Middle">
+					<font size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{nombrecaja}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="243" y="0" width="72" height="20" uuid="335aa4eb-2f43-4b50-b536-993ff6f1e1b7"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{inicial}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="315" y="0" width="68" height="20" uuid="17739c62-fe8b-4716-952a-bdd4485d05ef"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{ingresos_transfer}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="383" y="0" width="68" height="20" uuid="8f868f51-eeb9-4c27-940b-a98cb73a448b"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{cobros}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="519" y="0" width="68" height="20" uuid="045e1aa2-2439-447b-8d1d-b383d3daa464"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{gastos}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="587" y="0" width="68" height="20" uuid="af11363c-a56f-4a02-9d1e-5cacf0e4715f"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{desembolsos}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="655" y="0" width="72" height="20" uuid="fb9b0ac4-bd9e-43ca-b272-04fcc153faeb"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{final}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="451" y="0" width="68" height="20" uuid="530ea0a2-a342-4eca-9e7e-afe9b84f7f5b"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{egresos_transfer}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="0" y="0" width="143" height="20" uuid="fd678a13-1cde-4c79-bbca-92c269ceaaa6"/>
+				<textElement verticalAlignment="Middle">
+					<font size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{sucursal}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<columnFooter>
+		<band splitType="Stretch"/>
+	</columnFooter>
+	<pageFooter>
+		<band splitType="Stretch"/>
+	</pageFooter>
+	<summary>
+		<band height="29" splitType="Stretch">
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="243" y="0" width="72" height="20" uuid="44ac310f-6fe5-4235-b065-0933e135922f"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{inicial_1}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="315" y="0" width="68" height="20" uuid="e5d2e686-6350-46f5-bbeb-384094ad1705"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{ingresos_1}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="383" y="0" width="68" height="20" uuid="ac0816e6-1674-4a18-a218-88fb2c8c587b"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{cobros_1}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="519" y="0" width="68" height="20" uuid="6168aa8b-6e28-48b2-a52b-9e5b1faf7a15"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{gastos_1}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="587" y="0" width="68" height="20" uuid="b3f41426-0b81-4a73-aa56-bfb5df060008"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{desembolsos_1}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="655" y="0" width="72" height="20" uuid="a179aebe-e600-4b5d-b368-c5bca07c3f6f"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{final_1}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)" isBlankWhenNull="false">
+				<reportElement mode="Transparent" x="451" y="0" width="68" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="61e5bf54-1145-4623-b8e4-1875f974c208"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="6" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{egresos_transfer_1}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="143" y="0" width="100" height="20" uuid="bb334a05-d841-439b-9f92-00b7617d5e0d"/>
+				<textElement verticalAlignment="Middle">
+					<font size="6" isBold="true"/>
+				</textElement>
+				<text><![CDATA[TOTALES GLOBALES]]></text>
+			</staticText>
+		</band>
+	</summary>
+</jasperReport>

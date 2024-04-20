@@ -50,6 +50,8 @@ for(MPayment mp in draftPayments){
     i = i+1;
     String quickLog = new StringBuffer("====> Completando Pago (" + org.getName() + ") ")
         .append(i.toString() + " de " + draftPayments.size().toString() + " <===== ")
+        .append("ID: " + mp.getC_Payment_ID().toString() + " ")
+        .append("DocNo: " + mp.getDocumentNo() + " ")
         .toString();
     System.out.print(quickLog );
     mp.processIt(DocAction.ACTION_Complete);

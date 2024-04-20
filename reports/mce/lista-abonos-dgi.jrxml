@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="lista-abonos-dgi" language="groovy" pageWidth="5000" pageHeight="720" orientation="Landscape" columnWidth="4960" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="229b7ee7-126e-4b34-aa28-9fd206093756">
+	<property name="ireport.zoom" value="1.0"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<style name="Crosstab Data Text" hAlign="Center"/>
+	<parameter name="period_id" class="java.math.BigDecimal"/>
+	<parameter name="greeting_id" class="java.math.BigDecimal"/>
+	<queryString>
+		<![CDATA[select bp.value as codigo,
+bp.name as nombrecliente,
+car.legacy_cartera_id as creditoid,
+car.montototal,
+cob.operacion::date as fechacobro,
+cob.abono,
+cp.name as periodo
+from c_bpartner bp
+inner join legacy_cobro cob
+	on bp.c_bpartner_id = cob.c_bpartner_id
+inner join c_period cp
+	on cob.operacion::date between cp.startdate::date and cp.enddate::date
+inner join legacy_cartera car on cob.id_cartera = car.legacy_cartera_id
+where cp.c_period_id = $P{period_id}
+and bp.c_greeting_id = $P{greeting_id} OR coalesce($P{greeting_id}, 1) = 1
+order by bp.name, fechacobro asc
+]]>
+	</queryString>
+	<field name="codigo" class="java.lang.String"/>
+	<field name="nombrecliente" class="java.lang.String"/>
+	<field name="creditoid" class="java.lang.Long"/>
+	<field name="montototal" class="java.math.BigDecimal"/>
+	<field name="fechacobro" class="java.sql.Date"/>
+	<field name="abono" class="java.math.BigDecimal"/>
+	<field name="periodo" class="java.lang.String"/>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="45" splitType="Stretch">
+			<staticText>
+				<reportElement x="0" y="0" width="527" height="20" uuid="196cc48d-c0c6-4887-9b11-8c9791999328"/>
+				<text><![CDATA[LISTA DE ABONOS DGI]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="0" y="20" width="527" height="20" uuid="2a64df2d-7482-443a-ae22-f67933adf92e"/>
+				<textFieldExpression><![CDATA[$F{periodo}]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<detail>
+		<band splitType="Stretch"/>
+	</detail>
+	<summary>
+		<band height="209" splitType="Stretch">
+			<crosstab>
+				<reportElement x="0" y="0" width="4960" height="209" uuid="8af1ff3e-adfb-4354-bd48-238dcced625a"/>
+				<crosstabHeaderCell>
+					<cellContents>
+						<staticText>
+							<reportElement style="Crosstab Data Text" x="138" y="15" width="52" height="15" uuid="fe4df3be-4d3e-4d6b-81f8-d74de465de16"/>
+							<textElement verticalAlignment="Middle">
+								<font size="5" isBold="true"/>
+							</textElement>
+							<text><![CDATA[No. de Crédito]]></text>
+						</staticText>
+						<staticText>
+							<reportElement style="Crosstab Data Text" x="0" y="15" width="138" height="15" uuid="fd04cd3d-1421-4bb8-981e-ce834ec3bbaf"/>
+							<textElement verticalAlignment="Middle">
+								<font size="5" isBold="true"/>
+							</textElement>
+							<text><![CDATA[Nombre Cliente]]></text>
+						</staticText>
+					</cellContents>
+				</crosstabHeaderCell>
+				<rowGroup name="nombrecliente_grp" width="138" totalPosition="End">
+					<bucket class="java.lang.String">
+						<bucketExpression><![CDATA[$F{nombrecliente}]]></bucketExpression>
+					</bucket>
+					<crosstabRowHeader>
+						<cellContents backcolor="#FFFFFF" mode="Opaque">
+							<textField pattern="" isBlankWhenNull="false">
+								<reportElement style="Crosstab Data Text" mode="Transparent" x="0" y="0" width="138" height="12" forecolor="#000000" backcolor="#FFFFFF" uuid="55831df8-1ae8-4472-85dc-6423bcd80beb"/>
+								<box leftPadding="4" rightPadding="0">
+									<topPen lineWidth="0.5"/>
+									<bottomPen lineWidth="0.5"/>
+								</box>
+								<textElement textAlignment="Left" verticalAlignment="Middle" rotation="None" markup="none">
+									<font fontName="SansSerif" size="5" isBold="false" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+									<paragraph lineSpacing="Single"/>
+								</textElement>
+								<textFieldExpression><![CDATA[$V{nombrecliente_grp}]]></textFieldExpression>
+							</textField>
+						</cellContents>
+					</crosstabRowHeader>
+					<crosstabTotalRowHeader>
+						<cellContents/>
+					</crosstabTotalRowHeader>
+				</rowGroup>
+				<rowGroup name="creditoid" width="52" totalPosition="End">
+					<bucket class="java.lang.String">
+						<bucketExpression><![CDATA[$F{creditoid}.toString()]]></bucketExpression>
+					</bucket>
+					<crosstabRowHeader>
+						<cellContents backcolor="#FFFFFF" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<textField>
+								<reportElement style="Crosstab Data Text" x="0" y="0" width="52" height="12" uuid="d1913ce1-6c3d-4caa-97f4-04cedee7f6f4"/>
+								<box leftPadding="4"/>
+								<textElement textAlignment="Left" verticalAlignment="Middle">
+									<font size="5"/>
+								</textElement>
+								<textFieldExpression><![CDATA[$V{creditoid}]]></textFieldExpression>
+							</textField>
+						</cellContents>
+					</crosstabRowHeader>
+					<crosstabTotalRowHeader>
+						<cellContents backcolor="#BFE1FF" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+						</cellContents>
+					</crosstabTotalRowHeader>
+				</rowGroup>
+				<columnGroup name="fechacobro" height="30" totalPosition="End">
+					<bucket class="java.sql.Date">
+						<bucketExpression><![CDATA[$F{fechacobro}]]></bucketExpression>
+					</bucket>
+					<crosstabColumnHeader>
+						<cellContents backcolor="#F0F8FF" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<textField pattern="dd/MM/yyyy">
+								<reportElement style="Crosstab Data Text" x="0" y="0" width="30" height="30" uuid="1bc783f0-d773-42bc-b8ad-e4bac5457a40"/>
+								<textElement verticalAlignment="Middle">
+									<font size="5"/>
+								</textElement>
+								<textFieldExpression><![CDATA[$V{fechacobro}]]></textFieldExpression>
+							</textField>
+						</cellContents>
+					</crosstabColumnHeader>
+					<crosstabTotalColumnHeader>
+						<cellContents backcolor="#BFE1FF" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<staticText>
+								<reportElement x="0" y="0" width="50" height="30" uuid="2476a5af-9690-42bf-bfd0-f881125e5d85"/>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font size="5" isBold="true"/>
+								</textElement>
+								<text><![CDATA[TOTAL]]></text>
+							</staticText>
+						</cellContents>
+					</crosstabTotalColumnHeader>
+				</columnGroup>
+				<measure name="abonoMeasure" class="java.math.BigDecimal" calculation="Sum">
+					<measureExpression><![CDATA[$F{abono}]]></measureExpression>
+				</measure>
+				<crosstabCell width="30" height="12">
+					<cellContents>
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<textField pattern="#,##0.00;-#,##0.00" isBlankWhenNull="true">
+							<reportElement style="Crosstab Data Text" x="0" y="0" width="30" height="12" uuid="b13eabb6-c4db-4f96-a60e-bbf1da5e386c"/>
+							<textElement verticalAlignment="Middle">
+								<font size="5"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{abonoMeasure}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="30" height="0" rowTotalGroup="creditoid">
+					<cellContents backcolor="#BFE1FF" mode="Opaque">
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="50" height="12" columnTotalGroup="fechacobro">
+					<cellContents backcolor="#BFE1FF" mode="Opaque">
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<textField pattern="#,##0.00;-#,##0.00">
+							<reportElement style="Crosstab Data Text" x="0" y="0" width="50" height="12" uuid="ab48d74f-604f-43e9-9695-55a6695f0f0d"/>
+							<textElement textAlignment="Right" verticalAlignment="Middle">
+								<font size="5" isBold="true"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{abonoMeasure}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell height="0" rowTotalGroup="creditoid" columnTotalGroup="fechacobro">
+					<cellContents backcolor="#BFE1FF" mode="Opaque">
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell height="13" rowTotalGroup="nombrecliente_grp">
+					<cellContents>
+						<textField pattern="#,##0.00;-#,##0.00">
+							<reportElement style="Crosstab Data Text" x="0" y="0" width="30" height="13" uuid="adf5bfcf-5b5e-4473-bee8-f690a611bff9"/>
+							<textElement textAlignment="Right" verticalAlignment="Middle">
+								<font size="5" isBold="true"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{abonoMeasure}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell height="13" rowTotalGroup="nombrecliente_grp" columnTotalGroup="fechacobro">
+					<cellContents>
+						<textField pattern="#,##0.00;-#,##0.00">
+							<reportElement style="Crosstab Data Text" x="0" y="0" width="50" height="13" uuid="f559d183-1a42-4cca-a079-b39d6049e847"/>
+							<textElement textAlignment="Right" verticalAlignment="Middle">
+								<font size="5" isBold="true"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{abonoMeasure}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+			</crosstab>
+		</band>
+	</summary>
+</jasperReport>

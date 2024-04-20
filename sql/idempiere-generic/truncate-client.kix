@@ -1,0 +1,174 @@
+DO $$
+BEGIN
+truncate table c_allocationline cascade;
+truncate table c_paymentallocate cascade;
+truncate table ad_changelog cascade;
+truncate table c_allocationline cascade;
+truncate table c_allocationhdr cascade;
+-- -- Update C_BankAccount Set CurrentBalance = 0 cascade;
+truncate table m_costhistory cascade;
+truncate table m_costdetail cascade;
+truncate table a_asset_addition cascade;
+truncate table m_matchinv cascade;
+truncate table m_matchpo cascade;
+truncate table c_payselectionline cascade;
+truncate table c_payselectioncheck cascade;
+truncate table c_payselection cascade;
+-- Update C_Invoice set C_Cashline_ID = null cascade;
+-- Update C_Order set C_Cashline_ID = null cascade;
+truncate table C_Cashline cascade;
+truncate table C_Cash cascade;
+-- -- Update c_payment set C_Invoice_ID= null cascade;
+truncate table C_CommissionAmt cascade;
+truncate table C_CommissionDetail cascade;
+truncate table C_CommissionLine cascade;
+truncate table C_CommissionRun cascade;
+truncate table C_Commission cascade;
+truncate table c_recurring_run cascade;
+truncate table c_recurring cascade;
+truncate table s_timeexpenseline cascade;
+truncate table s_timeexpense cascade;
+truncate table c_landedcostallocation cascade;
+truncate table c_landedcost cascade;
+truncate table a_asset_disposed cascade;
+truncate table c_invoiceline cascade;
+truncate table c_invoicetax cascade;
+
+truncate table c_bankstatementline cascade;
+truncate table c_bankstatement cascade;
+-- Update c_invoice set c_Payment_ID = null cascade;
+-- Update c_order set c_Payment_ID= null cascade;
+truncate table c_depositbatchline cascade;
+truncate table c_depositbatch cascade;
+truncate table c_orderpayschedule cascade;
+truncate table c_paymenttransaction cascade;
+truncate table c_payment cascade;
+truncate table c_paymentbatch cascade;
+-- -- Update M_INOUTLINE Set C_Orderline_ID = null, M_RMALine_ID=null cascade;
+-- -- Update M_INOUT Set C_Order_ID = null, C_Invoice_ID=null, M_RMA_ID=null cascade;
+-- -- Update C_INVOICE Set M_RMA_ID = null cascade;
+-- Update R_Request set m_rma_id = null cascade;
+truncate table m_rmatax cascade;
+truncate table M_RMAline cascade;
+truncate table M_RMA cascade;
+truncate table c_Invoice cascade;
+truncate table PP_MRP cascade;
+truncate table m_requisitionline cascade ;
+truncate table m_requisition cascade;
+-- Update pp_order set c_orderline_id = null cascade;
+truncate table c_orderline cascade;
+truncate table c_ordertax cascade;
+-- -- Update r_request set c_order_id = null, M_inout_id = null cascade;
+-- -- Update r_requestaction set c_order_id = null, M_inout_id = null cascade;
+truncate table c_orderlandedcostallocation cascade;
+truncate table c_orderlandedcost cascade;
+truncate table c_order cascade;
+truncate table fact_reconciliation cascade;
+truncate table fact_acct cascade;
+truncate table fact_acct_summary cascade;
+truncate table gl_journalbatch cascade ;
+truncate table gl_journal cascade; 
+truncate table gl_journalline cascade; 
+--truncate table m_storage ;  -- use this for ADempiere
+truncate table m_storageonhand cascade;
+truncate table m_storagereservation cascade;
+truncate table m_transaction cascade;
+truncate table m_packageline cascade;
+truncate table m_package cascade;
+-- -- Update c_projectissue set m_inoutline_id = null cascade;
+truncate table m_inoutline cascade; 
+truncate table m_inout cascade;
+truncate table m_inoutconfirm cascade; 
+truncate table m_inoutlineconfirm cascade; 
+truncate table m_inoutlinema cascade; 
+truncate table m_inventoryline cascade; 
+truncate table m_inventory cascade;
+truncate table m_inventorylinema  cascade; 
+truncate table m_Movementline cascade; 
+truncate table m_Movement cascade; 
+truncate table m_Movementconfirm cascade; 
+truncate table m_Movementlineconfirm cascade; 
+truncate table m_Movementlinema cascade; 
+truncate table m_production cascade;
+truncate table m_productionplan cascade; 
+truncate table m_productionline cascade; 
+truncate table c_dunningrun cascade; 
+truncate table c_dunningrunline cascade; 
+truncate table c_dunningrunentry cascade; 
+truncate table AD_WF_EventAudit  cascade;
+truncate table AD_WF_Process  cascade;
+-- Update M_Cost SET CurrentQty=0, CumulatedAMT=0, CumulatedQty=0   cascade;
+-- Update C_BPartner SET ActualLifetimeValue=0, SO_CreditUsed=0, TotalOpenBalance=0  cascade ;
+truncate table R_RequestUpdates  cascade;
+truncate table R_Request-- Update  cascade;
+truncate table R_RequestAction  cascade;
+truncate table R_Request  cascade;
+truncate table pp_cost_collectorma   cascade;
+truncate table pp_order_nodenext   cascade;
+truncate table pp_order_node_trl   cascade;
+truncate table pp_order_workflow_trl  cascade ;
+truncate table pp_order_bomline_trl  cascade ;
+truncate table pp_order_bom_trl  cascade ;
+-- Update pp_cost_collector set pp_order_bomline_id = null  cascade;
+truncate table pp_order_bomline  cascade ;
+truncate table pp_order_bom  cascade ;
+truncate table PP_Cost_Collector  cascade ;
+-- Update pp_order_workflow set PP_Order_Node_id = null  cascade; 
+truncate table PP_Order_Node  cascade;
+truncate table PP_Order_Workflow  cascade ;
+truncate table pp_order_cost  cascade ;
+truncate table PP_Order  cascade  ;
+truncate table dd_orderline  cascade;
+truncate table dd_order  cascade;
+truncate table t_replenish  cascade;
+truncate table i_order  cascade;
+truncate table i_invoice  cascade;
+truncate table i_payment  cascade;
+truncate table I_Inventory  cascade;
+truncate table I_GLJournal  cascade;
+truncate table m_distributionrunline  cascade;
+truncate table c_rfqline  cascade;
+truncate table s_timeexpense  cascade;
+truncate table s_timeexpenseline  cascade;
+truncate table c_projectline;
+truncate table c_projecttask;
+truncate table c_projectphase;
+truncate table c_project;
+
+truncate table ad_wf_eventaudit;
+delete from ad_note where ad_client_id=1000000;
+delete from ad_wf_activity where ad_client_id=1000000;
+delete from ad_wf_process where ad_client_id=1000000;
+delete from ad_user_roles where  ad_client_id=1000000;
+delete from ad_preference where  ad_client_id=1000000 or ad_user_id in (select ad_user_id from ad_user where ad_client_id=1000000);
+
+delete from pa_dashboardpreference where  ad_client_id=1000000;
+delete from ad_user_orgaccess where  ad_client_id=1000000;
+delete from ad_userpreference where  ad_client_id=1000000;
+delete from ad_fieldsuggestion where  ad_client_id=1000000 or ad_user_id in (select ad_user_id from ad_user where ad_client_id=1000000);
+delete from ad_postit where  ad_client_id=1000000 or createdby in (select ad_user_id from ad_user where ad_client_id=1000000);
+delete from ad_pinstance where  ad_client_id=1000000 or createdby in (select ad_user_id from ad_user where ad_client_id=1000000);
+
+delete from ad_user  where  ad_client_id=1000000 and ad_user_id != 1000000;
+delete from ad_org where ad_client_id=1000000;
+-- select * from ad_wf_process order by created desc limit 10
+-- Delete users, commented, but must be executed in that orderselect ad_client_id, password, name, * from ad_user order by created asc;
+delete from ad_user  where  ad_client_id=1000000 and ad_user_id != 1000000;
+
+-- delete from ad_preference where ad_user_id >= 1000003
+-- delete from pa_dashboardpreference where ad_user_id >= 1000003
+-- delete from ad_user_orgaccess where ad_user_id >= 1000003
+-- delete from ad_userpreference where ad_user_id >= 1000003
+-- delete from ad_fieldsuggestion where ad_user_id >= 1000003
+-- delete from ad_postit where createdby >= 1000003
+-- delete from ad_user where ad_user_id >= 1000003
+
+
+
+--- Let's clean partners and locations
+-- select * from c_bpartner limit 1000
+delete from c_bpartner  where  ad_client_id=1000000; commit;
+delete from c_location  where  ad_client_id=1000000;
+delete from c_bpartner_location  where  ad_client_id=1000000;
+VACUUM FULL;
+END $$

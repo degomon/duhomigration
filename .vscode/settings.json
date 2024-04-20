@@ -1,0 +1,19 @@
+{
+    "sqltools.connections": [
+        {
+            "previewLimit": 50,
+            "server": "173.208.141.202",
+            "port": 5432,
+            "driver": "PostgreSQL",
+            "name": "DUHO-PROD",
+            "group": "DUHO",
+            "database": "duho-prod",
+            "username": "adempiere",
+            "password": "adempiere**"
+        }
+    ],
+    "editor.formatOnSave": true,
+    "sqltools.format": {
+        "reservedWordCase": "upper" 
+    },
+}

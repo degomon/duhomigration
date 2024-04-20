@@ -2,7 +2,7 @@
 <jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="estado-cta-individual" language="groovy" pageWidth="612" pageHeight="792" columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="e4d75bdc-d10f-4a19-9fd0-fd3f25d14e44">
 	<property name="ireport.zoom" value="1.0"/>
 	<property name="ireport.x" value="0"/>
-	<property name="ireport.y" value="58"/>
+	<property name="ireport.y" value="0"/>
 	<style name="table">
 		<box>
 			<pen lineWidth="1.0" lineColor="#000000"/>
@@ -78,8 +78,20 @@ order by fecha asc
 	<parameter name="bpid" class="java.math.BigDecimal"/>
 	<parameter name="fechainicial" class="java.util.Date"/>
 	<parameter name="fechafinal" class="java.util.Date"/>
+	<parameter name="AD_PINSTANCE_ID" class="java.lang.Integer"/>
 	<queryString>
-		<![CDATA[select bp.c_bpartner_id, bp.value as codigo, bp.name as tercero,
+		<![CDATA[with tenant as (
+select
+conf.value::json ->> 'logo-url' as logourl,
+conf.value::json ->> 'company-name' as companyname
+from ad_pinstance pin
+inner join ad_client cli on pin.ad_client_id = cli.ad_client_id
+inner join AD_SysConfig conf on cli.ad_client_id = conf.ad_client_id and conf.name = 'DEVM_CONF'
+where pin.ad_pinstance_id = $P{AD_PINSTANCE_ID}
+),
+
+movements as (
+select bp.c_bpartner_id, bp.value as codigo, bp.name as tercero,
 'INI-DEB'::character varying as documentno,
 'SALDO INICIAL (DÉBITOS)'::character varying as concepto,
 ( $P{fechainicial}::date - interval '1 day')::date as fecha,
@@ -130,8 +142,11 @@ from c_bpartner bp
 inner join legacy_cobro cob on bp.c_bpartner_id = cob.c_bpartner_id
 where bp.c_bpartner_id = $P{bpid}
 and cob.operacion::date between $P{fechainicial}::date and $P{fechafinal}::date
+)
 
-order by fecha, created]]>
+select mov.*, ten.*
+from movements mov, tenant ten
+order by mov.fecha, mov.created]]>
 	</queryString>
 	<field name="c_bpartner_id" class="java.math.BigDecimal"/>
 	<field name="codigo" class="java.lang.String"/>
@@ -142,6 +157,8 @@ order by fecha, created]]>
 	<field name="debito" class="java.math.BigDecimal"/>
 	<field name="credito" class="java.math.BigDecimal"/>
 	<field name="created" class="java.sql.Timestamp"/>
+	<field name="logourl" class="java.lang.String"/>
+	<field name="companyname" class="java.lang.String"/>
 	<variable name="saldo" class="java.math.BigDecimal" calculation="Sum">
 		<variableExpression><![CDATA[$F{debito}.subtract( $F{credito} )]]></variableExpression>
 		<initialValueExpression><![CDATA[BigDecimal.ZERO]]></initialValueExpression>
@@ -192,13 +209,13 @@ order by fecha, created]]>
 				</textElement>
 				<text><![CDATA[ESTADO DE CUENTA DE CLIENTE CXC]]></text>
 			</staticText>
-			<staticText>
-				<reportElement x="0" y="0" width="572" height="20" uuid="6e25ceb7-090e-43bd-88d7-14c70b91d6f8"/>
-				<textElement verticalAlignment="Middle">
+			<textField>
+				<reportElement x="0" y="0" width="572" height="20" uuid="2a5fbde4-f51e-4e33-8443-e8aa63253b50"/>
+				<textElement verticalAlignment="Middle" markup="none">
 					<font isBold="true"/>
 				</textElement>
-				<text><![CDATA[CREDIVELOZ ]]></text>
-			</staticText>
+				<textFieldExpression><![CDATA[$F{companyname}.toUpperCase()]]></textFieldExpression>
+			</textField>
 			<textField>
 				<reportElement x="0" y="79" width="572" height="20" uuid="c6b439e6-444c-4fcb-b493-0aadb3c08153"/>
 				<textElement verticalAlignment="Middle" markup="html"/>

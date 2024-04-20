@@ -144,8 +144,14 @@ String sqlCajas  = " with sortedpayments as ( " +
     psmt.setTimestamp(1,fechaTS);
     psmt.setInt(2, orgid);
     psmt.setMaxRows(50000);
+
+    PreparedStatement psmtCheck = DB.prepareStatement(sqlCajas, A_TrxName);
+    psmtCheck.setTimestamp(1,fechaTS);
+    psmtCheck.setInt(2, orgid);
+    psmtCheck.setMaxRows(50000);
+
     ResultSet rs = psmt.executeQuery();
-    ResultSet rsCheck = psmt.executeQuery();
+    ResultSet rsCheck = psmtCheck.executeQuery();
 
     // Iterate over the rsCheck ResultSet
     while (rsCheck.next()) {

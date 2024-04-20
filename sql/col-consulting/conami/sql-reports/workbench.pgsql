@@ -1,0 +1,1 @@
+select * from legacy_cartera_data car order by fecha desc limit 10 

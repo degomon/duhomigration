@@ -164,8 +164,13 @@ while (rs.next()) {
     psmtCierre.setTimestamp(1,fechaActualTS);
     psmtCierre.setInt(2, orgid);
     psmtCierre.setMaxRows(50000);
+    PreparedStatement psmtCheck = DB.prepareStatement(sqlCajas, A_TrxName);
+    psmtCheck.setTimestamp(1,fechaActualTS);
+    psmtCheck.setInt(2, orgid);
+    psmtCheck.setMaxRows(50000);
+
     ResultSet rsCierre = psmtCierre.executeQuery();
-    ResultSet rsCheck = psmtCierre.executeQuery();
+    ResultSet rsCheck = psmtCheck.executeQuery();
 
     // Iterate over the rsCheck ResultSet
     while (rsCheck.next()) {

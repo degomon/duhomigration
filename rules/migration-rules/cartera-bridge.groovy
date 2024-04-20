@@ -1,8 +1,11 @@
 /**
 Proceso para sincronizar legacy_cartera con C_Invoice
+20230801 - add line for previous abonos
+20230801 - if cartera has partner, use that
 20210822 - Bank Account only for Sucursal
 20210725 - Org is a parameter now
 20210421 - First version
+
 **/
 
 import org.compiere.model.MTable;
@@ -61,15 +64,20 @@ for(GenericPO car in legacyCartera){
     System.out.println("Getting legacy_id for [" + legacy_cartera_id.toString()  + "]");
     if(currentLocalID<=0){
         // Obtener BP
-        Integer id_cliente = car.get_ValueAsInt("id_cliente");
+        Integer bp_id = car.get_ValueAsInt("c_bpartner_id");
         Integer id_cartera = car.get_ValueAsInt("id_cartera");
-        System.out.println("Getting client and cartera for [" + legacy_cartera_id.toString()  + "] Cliente-Org [" + id_cliente.toString() + "-" + orgid.toString() + "]");
-        GenericPO legacyCli = new Query(A_Ctx, "legacy_cliente", "id_cliente = ? and AD_Org_ID = ? ", A_TrxName)
-            .setParameters([id_cliente, orgid ])
-            .first();
-        if(legacyCli==null){
-            result = "ERROR: No hay cliente para esta Cartera (Legacy Not Found) " + id_cartera;
-            return;
+        if(bp_id==null || bp_id<=0){
+            Integer id_cliente = car.get_ValueAsInt("id_cliente");
+            System.out.println("Getting client and cartera for [" + legacy_cartera_id.toString()  + "] Cliente-Org [" + id_cliente.toString() + "-" + orgid.toString() + "]");
+            GenericPO legacyCli = new Query(A_Ctx, "legacy_cliente", "id_cliente = ? and AD_Org_ID = ? ", A_TrxName)
+                .setParameters([id_cliente, orgid ])
+                .first();
+            if(legacyCli==null){
+                result = "ERROR: No hay cliente para esta Cartera (Legacy Not Found) " + id_cartera;
+                return;
+            }
+            bp_id = legacyCli.get_Value("C_BPartner_ID");
+            car.set_ValueOfColumn("C_BPartner_ID", bp_id);
         }
 
         System.out.println("Trying to get docKey [" + legacy_cartera_id.toString()  + "]");
@@ -81,7 +89,7 @@ for(GenericPO car in legacyCartera){
         int Nota_C_DocType_ID = 1000048;  // Financiamiento
         System.out.println("Trying to getBP [" + legacy_cartera_id.toString()  + "]");
         MBPartner bp = new Query(A_Ctx, "C_BPartner", " C_BPartner_ID = ? ", A_TrxName)
-            .setParameters([ legacyCli.get_Value("C_BPartner_ID") ])
+            .setParameters([ bp_id ])
             .first();
         
         if(bp==null){
@@ -139,6 +147,19 @@ for(GenericPO car in legacyCartera){
         iLineInteres.setPriceActual(car.get_Value("valorinteres"));
         iLineInteres.save(A_TrxName);
 
+        MInvoiceLine iLineAbono = new MInvoiceLine(invoice);
+        iLineAbono.setDescription("Abono legacy");
+        iLineAbono.setLine(20);
+        iLineAbono.setAD_Org_ID(car.getAD_Org_ID());
+        iLineAbono.setC_Charge_ID(1000032); // Abono Legacy
+        iLineAbono.setQtyEntered(BigDecimal.ONE);
+        iLineAbono.setQtyInvoiced(BigDecimal.ONE);
+        iLineAbono.setC_Tax_ID(1000000); // Standard
+        iLineAbono.setPrice(car.get_Value("abono")*-1);
+        iLineAbono.setPriceActual(car.get_Value("abono")*-1);
+        iLineAbono.save(A_TrxName);
+
+
         // Let's create a payment
         MBankAccount bac = new Query(A_Ctx, "C_BankAccount", "AD_Org_ID = ? and description = 'SUCURSAL' ", A_TrxName)
         .setParameters([ orgid ])
@@ -164,7 +185,7 @@ for(GenericPO car in legacyCartera){
         // Update current legacy cartera
         car.set_ValueOfColumn("synced", "Y");
         car.set_ValueOfColumn("local_id", invoice.get_ID());
-        car.set_ValueOfColumn("C_BPartner_ID", bp.get_ID());
+        
         car.save(A_TrxName);
 
         log.info("Invoice created: " + invoice.getDocumentNo() + " No: " + workNumber);

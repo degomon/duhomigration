@@ -1,0 +1,419 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="comprobante-ingresos-fiscales" language="groovy" pageWidth="1200" pageHeight="595" orientation="Landscape" columnWidth="1160" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="72d6c6cb-b017-477d-9acd-7ca19aaaccf7">
+	<property name="ireport.zoom" value="1.0"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<style name="Crosstab Data Text" hAlign="Center"/>
+	<parameter name="period_id" class="java.math.BigDecimal"/>
+	<parameter name="greeting_id" class="java.math.BigDecimal"/>
+	<queryString>
+		<![CDATA[select
+cob.operacion::date as fecha,
+sum(cob.abono) as bruto,
+sum(round( (cob.abono * 0.85), 2)) as neto,
+sum(round( ( (cob.abono * 0.85) * 0.13), 2)) as intereses,
+sum(round( ((cob.abono * 0.85) * 0.02), 2)) as comision,
+sum(round( ((cob.abono * 0.85) * 0.15), 2)) as ingresosfinancieros,
+cp.startdate,
+cp.enddate,
+TO_CHAR(cp.enddate, 'YYYYMM')::int as cobmes_int,
+cp.name,
+case
+    when (TO_CHAR(cp.enddate, 'YYYYMM')::int
+    - TO_CHAR(car.fecha, 'YYYYMM')::int) >= 4
+            then ' <=' || TO_CHAR(cp.enddate - interval '4 month', 'YYYYMM')
+    else TO_CHAR(car.fecha, 'YYYYMM') end as credmes_str,
+case
+    when (TO_CHAR(cp.enddate, 'YYYYMM')::int
+    - TO_CHAR(car.fecha, 'YYYYMM')::int) >= 4
+            then TO_CHAR(cp.enddate, 'YYYYMM')::int - 4
+    else TO_CHAR(car.fecha , 'YYYYMM')::int end as credmes_int
+-- TO_CHAR(car.fecha, 'YYYYMM')::int as credmes_int
+from c_period cp
+inner join legacy_cobro cob
+on cob.operacion::date between cp.startdate::date and cp.enddate::date
+inner join c_bpartner bp on cob.c_bpartner_id = bp.c_bpartner_id
+inner join legacy_cartera car on cob.id_cartera = car.legacy_cartera_id
+where cp.c_period_id = $P{period_id}
+and bp.c_greeting_id = $P{greeting_id} OR coalesce($P{greeting_id}, 1) = 1
+group by cob.operacion::date,
+cp.startdate,
+cp.enddate,
+cp.name,
+TO_CHAR(car.fecha, 'YYYYMM'),
+TO_CHAR(car.fecha, 'YYYYMM')::int,
+car.fecha
+order by cob.operacion::date asc, credmes_int asc]]>
+	</queryString>
+	<field name="fecha" class="java.sql.Date"/>
+	<field name="bruto" class="java.math.BigDecimal"/>
+	<field name="neto" class="java.math.BigDecimal"/>
+	<field name="intereses" class="java.math.BigDecimal"/>
+	<field name="comision" class="java.math.BigDecimal"/>
+	<field name="ingresosfinancieros" class="java.math.BigDecimal"/>
+	<field name="startdate" class="java.sql.Timestamp"/>
+	<field name="enddate" class="java.sql.Timestamp"/>
+	<field name="cobmes_int" class="java.lang.Integer"/>
+	<field name="name" class="java.lang.String"/>
+	<field name="credmes_str" class="java.lang.String"/>
+	<field name="credmes_int" class="java.lang.Integer"/>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="63" splitType="Stretch">
+			<staticText>
+				<reportElement x="0" y="0" width="576" height="20" uuid="f36b13c6-a4a0-457f-89be-9799453cde5b"/>
+				<textElement>
+					<font size="12" isBold="true"/>
+				</textElement>
+				<text><![CDATA[COMPROBANTE DE INGRESOS FINANCIEROS]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="0" y="20" width="576" height="20" uuid="35e3a829-afe1-4d9e-a6ac-d2da9c0efb1f"/>
+				<textFieldExpression><![CDATA[new SimpleDateFormat("MMMM yyyy", new Locale("es", "ES")).format($F{fecha})]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<summary>
+		<band height="475" splitType="Stretch">
+			<crosstab>
+				<reportElement x="0" y="0" width="2460" height="475" uuid="db8bffb0-11fc-4ed7-8f8f-07506bd07d19"/>
+				<rowGroup name="fecha" width="70" totalPosition="End">
+					<bucket class="java.sql.Date">
+						<bucketExpression><![CDATA[$F{fecha}]]></bucketExpression>
+					</bucket>
+					<crosstabRowHeader>
+						<cellContents backcolor="#A9A9A9" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<textField pattern="dd/MM/yyyy">
+								<reportElement style="Crosstab Data Text" x="0" y="0" width="70" height="7" uuid="345b26b3-f772-4886-b528-9009fa679617"/>
+								<textElement>
+									<font size="5"/>
+								</textElement>
+								<textFieldExpression><![CDATA[$V{fecha}]]></textFieldExpression>
+							</textField>
+						</cellContents>
+					</crosstabRowHeader>
+					<crosstabTotalRowHeader>
+						<cellContents backcolor="#FFBFBF" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<staticText>
+								<reportElement x="0" y="0" width="70" height="10" uuid="7724e96a-7278-4add-93f8-b80182d8038d"/>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font size="7" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Total fecha]]></text>
+							</staticText>
+						</cellContents>
+					</crosstabTotalRowHeader>
+				</rowGroup>
+				<columnGroup name="credmes_str" height="30" totalPosition="End">
+					<bucket class="java.lang.String">
+						<bucketExpression><![CDATA[$F{credmes_str}]]></bucketExpression>
+					</bucket>
+					<crosstabColumnHeader>
+						<cellContents backcolor="#A9A9A9" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<textField>
+								<reportElement style="Crosstab Data Text" x="0" y="0" width="176" height="16" uuid="432cc33d-e435-40ea-b2d5-cf0d00a45b74"/>
+								<textElement>
+									<font isBold="true"/>
+								</textElement>
+								<textFieldExpression><![CDATA[$V{credmes_str}]]></textFieldExpression>
+							</textField>
+							<staticText>
+								<reportElement style="Crosstab Data Text" x="0" y="16" width="35" height="14" uuid="1d2b9cde-6500-4468-bc39-84475d2e1f3c"/>
+								<textElement verticalAlignment="Middle">
+									<font size="5" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Total]]></text>
+							</staticText>
+							<staticText>
+								<reportElement style="Crosstab Data Text" x="35" y="16" width="35" height="14" uuid="48f42576-c455-432d-bb24-68fe2a826161"/>
+								<textElement verticalAlignment="Middle">
+									<font size="5" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Neto]]></text>
+							</staticText>
+							<staticText>
+								<reportElement style="Crosstab Data Text" x="70" y="16" width="35" height="14" uuid="06d489c9-35ba-4402-9ad2-1e51500d227b"/>
+								<textElement verticalAlignment="Middle">
+									<font size="5" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Interés]]></text>
+							</staticText>
+							<staticText>
+								<reportElement style="Crosstab Data Text" x="105" y="16" width="35" height="14" uuid="94164f49-09a4-4e46-bad0-e7d8128cca9b"/>
+								<textElement verticalAlignment="Middle">
+									<font size="5" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Comisión]]></text>
+							</staticText>
+							<staticText>
+								<reportElement style="Crosstab Data Text" x="140" y="16" width="35" height="14" uuid="3dd31bd2-9b7b-4594-ba3e-0a8d24923ab2"/>
+								<textElement verticalAlignment="Middle">
+									<font size="5" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Ing. Financieros]]></text>
+							</staticText>
+						</cellContents>
+					</crosstabColumnHeader>
+					<crosstabTotalColumnHeader>
+						<cellContents backcolor="#FFBFBF" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<staticText>
+								<reportElement x="0" y="0" width="200" height="16" uuid="7b5522ae-d6f2-44e3-9712-a4e4e93a1fd8"/>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font isBold="true"/>
+								</textElement>
+								<text><![CDATA[Total MES]]></text>
+							</staticText>
+							<staticText>
+								<reportElement style="Crosstab Data Text" x="40" y="16" width="40" height="14" uuid="86e7c769-24a5-4c25-80de-a74155cdcf93"/>
+								<textElement verticalAlignment="Middle">
+									<font size="5" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Neto]]></text>
+							</staticText>
+							<staticText>
+								<reportElement style="Crosstab Data Text" x="160" y="16" width="40" height="14" uuid="86e3c72d-3f62-4939-ae48-bd657c819755"/>
+								<textElement verticalAlignment="Middle">
+									<font size="5" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Ing. Financieros]]></text>
+							</staticText>
+							<staticText>
+								<reportElement style="Crosstab Data Text" x="120" y="16" width="40" height="14" uuid="dffb1538-f328-400c-aa32-6d18c3f97dbb"/>
+								<textElement verticalAlignment="Middle">
+									<font size="5" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Comisión]]></text>
+							</staticText>
+							<staticText>
+								<reportElement style="Crosstab Data Text" x="80" y="16" width="40" height="14" uuid="19e45a39-c1de-402a-804f-a49c17ff8387"/>
+								<textElement verticalAlignment="Middle">
+									<font size="5" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Interés]]></text>
+							</staticText>
+							<staticText>
+								<reportElement style="Crosstab Data Text" x="0" y="16" width="40" height="14" uuid="ee5819b4-d96b-447e-8d31-eb710d19e4b5"/>
+								<textElement verticalAlignment="Middle">
+									<font size="5" isBold="true"/>
+								</textElement>
+								<text><![CDATA[Total]]></text>
+							</staticText>
+						</cellContents>
+					</crosstabTotalColumnHeader>
+				</columnGroup>
+				<measure name="brutoMeasure" class="java.math.BigDecimal" calculation="Sum">
+					<measureExpression><![CDATA[$F{bruto}]]></measureExpression>
+				</measure>
+				<measure name="netoMeasure" class="java.math.BigDecimal" calculation="Sum">
+					<measureExpression><![CDATA[$F{neto}]]></measureExpression>
+				</measure>
+				<measure name="interesMeasure" class="java.math.BigDecimal" calculation="Sum">
+					<measureExpression><![CDATA[$F{intereses}]]></measureExpression>
+				</measure>
+				<measure name="comisionMeasure" class="java.math.BigDecimal" calculation="Sum">
+					<measureExpression><![CDATA[$F{comision}]]></measureExpression>
+				</measure>
+				<measure name="ingresosFinancierosMeasure" class="java.math.BigDecimal" calculation="Sum">
+					<measureExpression><![CDATA[$F{ingresosfinancieros}]]></measureExpression>
+				</measure>
+				<crosstabCell width="176" height="7">
+					<cellContents>
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<textField pattern="#,##0.00;-#,##0.00">
+							<reportElement style="Crosstab Data Text" x="0" y="0" width="35" height="7" uuid="e51d52df-dbfc-4a9c-8150-fe5d476c6842"/>
+							<box leftPadding="4"/>
+							<textElement textAlignment="Right">
+								<font size="5"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{brutoMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00;-#,##0.00">
+							<reportElement style="Crosstab Data Text" x="35" y="0" width="35" height="7" uuid="6fef103a-d006-4745-8457-3ea6dab06b51"/>
+							<box leftPadding="4"/>
+							<textElement textAlignment="Right">
+								<font size="5"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{netoMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00;-#,##0.00">
+							<reportElement style="Crosstab Data Text" x="70" y="0" width="35" height="7" uuid="75b06f67-6ee4-458a-94a4-de673dd21a17"/>
+							<box leftPadding="4"/>
+							<textElement textAlignment="Right">
+								<font size="5"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{interesMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00;-#,##0.00">
+							<reportElement style="Crosstab Data Text" x="105" y="0" width="35" height="7" uuid="6014cbd7-6bda-438b-a251-021e59c951dd"/>
+							<box leftPadding="4"/>
+							<textElement textAlignment="Right">
+								<font size="5"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{comisionMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00;-#,##0.00">
+							<reportElement style="Crosstab Data Text" x="140" y="0" width="35" height="7" uuid="c5ae76ff-0d53-4c5c-922a-8b70ef970ded"/>
+							<box leftPadding="4"/>
+							<textElement textAlignment="Right">
+								<font size="5"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{ingresosFinancierosMeasure}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="176" height="12" rowTotalGroup="fecha">
+					<cellContents backcolor="#FFBFBF" mode="Opaque">
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<textField pattern="#,##0.00;-#,##0.00">
+							<reportElement style="Crosstab Data Text" x="0" y="0" width="35" height="8" uuid="1b82deac-b6c8-438c-a3d5-768e07c3c9a7"/>
+							<textElement textAlignment="Right">
+								<font size="5" isBold="true"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{brutoMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00;-#,##0.00">
+							<reportElement style="Crosstab Data Text" x="35" y="0" width="35" height="8" uuid="b26d1bad-a2fd-4e05-84ff-c32376cf0d88"/>
+							<textElement textAlignment="Right">
+								<font size="5" isBold="true"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{netoMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00;-#,##0.00">
+							<reportElement style="Crosstab Data Text" x="70" y="0" width="35" height="8" uuid="49b4e69a-4a2f-4e47-9de3-40c7829aa206"/>
+							<textElement textAlignment="Right">
+								<font size="5" isBold="true"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{interesMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00;-#,##0.00">
+							<reportElement style="Crosstab Data Text" x="105" y="0" width="35" height="8" uuid="1711dc4f-3fe8-4d9f-9bf9-c8534e6dc518"/>
+							<textElement textAlignment="Right">
+								<font size="5" isBold="true"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{comisionMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00;-#,##0.00">
+							<reportElement style="Crosstab Data Text" x="140" y="0" width="35" height="8" uuid="8ab0a654-bd22-4969-8449-b7fc0f738088"/>
+							<textElement textAlignment="Right">
+								<font size="5" isBold="true"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{ingresosFinancierosMeasure}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="205" height="7" columnTotalGroup="credmes_str">
+					<cellContents backcolor="#FFBFBF" mode="Opaque">
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<textField pattern="#,##0.00;-#,##0.00">
+							<reportElement style="Crosstab Data Text" x="0" y="0" width="40" height="7" uuid="c8f6ffa9-4682-4799-a9a0-d8ae8f1db063"/>
+							<box leftPadding="4"/>
+							<textElement textAlignment="Right">
+								<font size="5"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{brutoMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00;-#,##0.00">
+							<reportElement style="Crosstab Data Text" x="40" y="0" width="40" height="7" uuid="6110ea04-ad22-4103-afba-a1ec3baaff3d"/>
+							<box leftPadding="4"/>
+							<textElement textAlignment="Right">
+								<font size="5"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{netoMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00;-#,##0.00">
+							<reportElement style="Crosstab Data Text" x="80" y="0" width="40" height="7" uuid="66e66815-ab0f-433b-8860-111c5aec1a3d"/>
+							<box leftPadding="4"/>
+							<textElement textAlignment="Right">
+								<font size="5"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{interesMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00;-#,##0.00">
+							<reportElement style="Crosstab Data Text" x="120" y="0" width="40" height="7" uuid="0922c50b-0f35-452e-b4c0-f01a97e7b70d"/>
+							<box leftPadding="4"/>
+							<textElement textAlignment="Right">
+								<font size="5"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{comisionMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00;-#,##0.00">
+							<reportElement style="Crosstab Data Text" x="160" y="0" width="40" height="7" uuid="d19cc324-24f9-4110-8e7a-86c3364786b9"/>
+							<box leftPadding="4"/>
+							<textElement textAlignment="Right">
+								<font size="5"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{ingresosFinancierosMeasure}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="205" height="12" rowTotalGroup="fecha" columnTotalGroup="credmes_str">
+					<cellContents backcolor="#FFBFBF" mode="Opaque">
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<textField pattern="#,##0.00;-#,##0.00">
+							<reportElement style="Crosstab Data Text" x="0" y="0" width="40" height="10" uuid="b5f9850f-c9a9-44f8-a201-e92e30d09e83"/>
+							<box leftPadding="4"/>
+							<textElement textAlignment="Right">
+								<font size="5" isBold="true"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{brutoMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00;-#,##0.00">
+							<reportElement style="Crosstab Data Text" x="40" y="0" width="40" height="10" uuid="0b6d8f3f-5d18-4d65-930d-8e88ecd5eea3"/>
+							<box leftPadding="4"/>
+							<textElement textAlignment="Right">
+								<font size="5" isBold="true"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{netoMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00;-#,##0.00">
+							<reportElement style="Crosstab Data Text" x="80" y="0" width="40" height="10" uuid="5d6b45b0-f7b9-428e-8f63-33e5350c0d02"/>
+							<box leftPadding="4"/>
+							<textElement textAlignment="Right">
+								<font size="5" isBold="true"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{interesMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00;-#,##0.00">
+							<reportElement style="Crosstab Data Text" x="120" y="0" width="40" height="10" uuid="c8741515-2e2d-476d-a4d5-58c0e0582b2e"/>
+							<box leftPadding="4"/>
+							<textElement textAlignment="Right">
+								<font size="5" isBold="true"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{comisionMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="#,##0.00;-#,##0.00">
+							<reportElement style="Crosstab Data Text" x="160" y="0" width="40" height="10" uuid="416f94e7-8843-418c-a745-6d460859d509"/>
+							<box leftPadding="4"/>
+							<textElement textAlignment="Right">
+								<font size="5" isBold="true"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{ingresosFinancierosMeasure}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+			</crosstab>
+		</band>
+	</summary>
+</jasperReport>

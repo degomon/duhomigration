@@ -1,0 +1,462 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Jaspersoft Studio version 6.20.1.final using JasperReports Library version 6.2.1  -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="creditos-fecha-global" language="groovy" pageWidth="1008" pageHeight="612" orientation="Landscape" columnWidth="988" leftMargin="10" rightMargin="10" topMargin="20" bottomMargin="20" uuid="dd8bac62-915e-47c0-85bf-077cd235e26b">
+	<property name="ireport.zoom" value="1.610510000000001"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<property name="com.jaspersoft.studio.data.defaultdataadapter" value="Duho-PROD"/>
+	<property name="com.jaspersoft.studio.unit." value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.pageHeight" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.pageWidth" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.topMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.bottomMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.leftMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.rightMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.columnWidth" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.columnSpacing" value="pixel"/>
+	<property name="com.jaspersoft.studio.report.description" value=""/>
+	<parameter name="fecha" class="java.util.Date"/>
+	<parameter name="fechafinal" class="java.util.Date"/>
+	<queryString language="plsql">
+		<![CDATA[select car.*,
+case bp.genero when 'F' then 'Femenino'
+when 'M' then 'Masculino'
+else 'Pendiente' end as genero,
+case bp.tipo_localizacion
+when 'U' then 'Urbano'
+when 'R' then 'Rural'
+else 'Pendiente' end as tipo_localizacion
+from 
+legacy_cartera_vw car
+inner join c_bpartner bp on car.c_bpartner_id = bp.c_bpartner_id
+where car.fecha::date between  '20240201'::date and '20240229'::date
+order by car.nombreruta, car.fecha asc]]>
+	</queryString>
+	<field name="recordid" class="java.lang.Long">
+		<property name="com.jaspersoft.studio.field.name" value="recordid"/>
+		<property name="com.jaspersoft.studio.field.label" value="recordid"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="legacy_cartera_id" class="java.lang.Long">
+		<property name="com.jaspersoft.studio.field.name" value="legacy_cartera_id"/>
+		<property name="com.jaspersoft.studio.field.label" value="legacy_cartera_id"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="ad_org_id" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="ad_org_id"/>
+		<property name="com.jaspersoft.studio.field.label" value="ad_org_id"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="masterkey" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="masterkey"/>
+		<property name="com.jaspersoft.studio.field.label" value="masterkey"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="dias_cre" class="java.lang.Integer">
+		<property name="com.jaspersoft.studio.field.name" value="dias_cre"/>
+		<property name="com.jaspersoft.studio.field.label" value="dias_cre"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="c_bpartner_id" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="c_bpartner_id"/>
+		<property name="com.jaspersoft.studio.field.label" value="c_bpartner_id"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="codigo" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="codigo"/>
+		<property name="com.jaspersoft.studio.field.label" value="codigo"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="fecha" class="java.sql.Timestamp">
+		<property name="com.jaspersoft.studio.field.name" value="fecha"/>
+		<property name="com.jaspersoft.studio.field.label" value="fecha"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="fechaflat" class="java.sql.Date">
+		<property name="com.jaspersoft.studio.field.name" value="fechaflat"/>
+		<property name="com.jaspersoft.studio.field.label" value="fechaflat"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="nombrecliente" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="nombrecliente"/>
+		<property name="com.jaspersoft.studio.field.label" value="nombrecliente"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="monto" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="monto"/>
+		<property name="com.jaspersoft.studio.field.label" value="monto"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="tasa" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="tasa"/>
+		<property name="com.jaspersoft.studio.field.label" value="tasa"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="plazodias" class="java.lang.Integer">
+		<property name="com.jaspersoft.studio.field.name" value="plazodias"/>
+		<property name="com.jaspersoft.studio.field.label" value="plazodias"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="interes" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="interes"/>
+		<property name="com.jaspersoft.studio.field.label" value="interes"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="montototal" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="montototal"/>
+		<property name="com.jaspersoft.studio.field.label" value="montototal"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="usuario" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="usuario"/>
+		<property name="com.jaspersoft.studio.field.label" value="usuario"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="grupotercero" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="grupotercero"/>
+		<property name="com.jaspersoft.studio.field.label" value="grupotercero"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="sincronizado" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="sincronizado"/>
+		<property name="com.jaspersoft.studio.field.label" value="sincronizado"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="cv_ruta_id" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="cv_ruta_id"/>
+		<property name="com.jaspersoft.studio.field.label" value="cv_ruta_id"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="nombreruta" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="nombreruta"/>
+		<property name="com.jaspersoft.studio.field.label" value="nombreruta"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="nombresucursal" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="nombresucursal"/>
+		<property name="com.jaspersoft.studio.field.label" value="nombresucursal"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="coords" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="coords"/>
+		<property name="com.jaspersoft.studio.field.label" value="coords"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="latitud" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="latitud"/>
+		<property name="com.jaspersoft.studio.field.label" value="latitud"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="longitud" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="longitud"/>
+		<property name="com.jaspersoft.studio.field.label" value="longitud"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="fechavence" class="java.sql.Date">
+		<property name="com.jaspersoft.studio.field.name" value="fechavence"/>
+		<property name="com.jaspersoft.studio.field.label" value="fechavence"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="diffdias" class="java.lang.Integer">
+		<property name="com.jaspersoft.studio.field.name" value="diffdias"/>
+		<property name="com.jaspersoft.studio.field.label" value="diffdias"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="tipodesembolso" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="tipodesembolso"/>
+		<property name="com.jaspersoft.studio.field.label" value="tipodesembolso"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera_vw"/>
+	</field>
+	<field name="genero" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="genero"/>
+		<property name="com.jaspersoft.studio.field.label" value="genero"/>
+	</field>
+	<field name="tipo_localizacion" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="tipo_localizacion"/>
+		<property name="com.jaspersoft.studio.field.label" value="tipo_localizacion"/>
+	</field>
+	<variable name="montototal_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{montototal}]]></variableExpression>
+	</variable>
+	<variable name="monto_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{monto}]]></variableExpression>
+	</variable>
+	<variable name="interes_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{interes}]]></variableExpression>
+	</variable>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="91" splitType="Stretch">
+			<staticText>
+				<reportElement x="1" y="11" width="75" height="30" uuid="fc28cdff-6731-4c7d-a91b-6443f384a0ad">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Código]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="293" y="11" width="45" height="30" uuid="43e40ef9-5219-4424-95cf-ed2de9e88b03">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Fecha]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="76" y="11" width="175" height="30" uuid="e26a19ba-1c1a-42d5-ab63-d7cdf61868f3">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Nombre]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="338" y="11" width="57" height="30" uuid="65a93fc4-0da2-4129-b310-16c44c43ef8b">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Monto]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="567" y="11" width="63" height="30" uuid="62ccfd36-3fd4-4b11-8a65-30a8f1b15e2c">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Ruta]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="395" y="11" width="29" height="30" uuid="53deebe4-2bab-4551-affb-49843a5f51a1">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Tasa]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="424" y="11" width="32" height="30" uuid="93ef4691-e7fa-4d9c-8deb-7998d5fac035">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Plazo]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="456" y="11" width="54" height="30" uuid="168b3d0f-0717-4c41-ad27-03f3f6eb4ff8">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Interés]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="510" y="11" width="57" height="30" uuid="d984bed6-aeda-43ba-8cc1-48d7005c17b3">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Monto Total]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="251" y="11" width="42" height="30" uuid="fb4701c8-17fe-4b8e-b568-16c15e32570a">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Id. Desembolso]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="630" y="11" width="46" height="30" uuid="d785940c-6a87-4c6a-8fad-5ce13af88143">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Tipo]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="676" y="11" width="46" height="30" uuid="11af3675-aa61-4eca-94e1-cf004562f780">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Género]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="722" y="11" width="52" height="30" uuid="80b98258-8ff8-4b6e-9cb6-695b87fa495b">
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Tipo Localización]]></text>
+			</staticText>
+		</band>
+	</title>
+	<detail>
+		<band height="15" splitType="Stretch">
+			<property name="com.jaspersoft.studio.unit.height" value="px"/>
+			<textField>
+				<reportElement x="1" y="0" width="75" height="15" uuid="67326104-707c-4a2f-9d95-9dd57d145451"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{codigo}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="293" y="0" width="45" height="15" uuid="1ab987e5-6e15-4824-84a7-8ded031c1b9a"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{fecha}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="76" y="0" width="175" height="15" uuid="95246cbb-bf05-46af-b616-0d28916512fc"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{nombrecliente}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="338" y="0" width="57" height="15" uuid="5045ae45-4d7a-472e-a9a7-3633949477ce"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{monto}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="567" y="0" width="63" height="15" uuid="c1608a02-9997-4307-955d-25e277d333a4"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{nombreruta}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="395" y="0" width="29" height="15" uuid="70bf7d07-0fd8-4ac2-80d7-2d9f7d4a3a2d"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{tasa}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="424" y="0" width="32" height="15" uuid="6ba47571-03bd-484a-acaa-42f6b90e6298"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{plazodias}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="456" y="0" width="54" height="15" uuid="f40547f1-24f9-4820-98b3-0d2dc84665d5"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{interes}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="510" y="0" width="57" height="15" uuid="e1cea152-5abc-45b9-91c0-6c37e634e51c"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{montototal}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="251" y="0" width="42" height="15" uuid="ef3d3041-4845-4af6-aff8-5fa954c0fab0"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{recordid}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="630" y="0" width="46" height="15" uuid="350246a2-549d-4dc4-b312-53a4b59faafb"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{tipodesembolso}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="676" y="0" width="46" height="15" uuid="6c751abd-853a-4764-b93f-81936039a016"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{genero}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="722" y="0" width="52" height="15" uuid="12d3326d-33e6-42e0-8b88-f12554a8db0a">
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Arial Narrow" size="6"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{tipo_localizacion}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<summary>
+		<band height="198" splitType="Stretch">
+			<textField pattern="#,##0.00;(#,##0.00)">
+				<reportElement x="511" y="0" width="57" height="20" uuid="9a40bf71-56b7-4941-be29-afe1cf96bec6"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{montototal_1}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="238" y="0" width="100" height="20" uuid="e586cdd1-3bcf-46a9-8b6c-1300347d499a"/>
+				<textElement verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Totales Generales =>]]></text>
+			</staticText>
+			<textField pattern="#,##0.00;(#,##0.00)" isBlankWhenNull="false">
+				<reportElement mode="Transparent" x="338" y="0" width="57" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="704ae6e3-441f-4bf0-8880-06370f5c39ce"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="8" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{monto_1}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;(#,##0.00)" isBlankWhenNull="false">
+				<reportElement mode="Transparent" x="457" y="0" width="54" height="20" forecolor="#000000" backcolor="#FFFFFF" uuid="1eb02549-2bb3-4b21-b474-660143370efc"/>
+				<box rightPadding="4"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle" rotation="None" markup="none">
+					<font fontName="SansSerif" size="8" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{interes_1}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="-1" y="140" width="679" height="20" uuid="f061db48-f6cf-4383-9f2a-0651d5ac22d8"/>
+				<textElement verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA["CRÉDITOS DESDE EL "
++ ( new SimpleDateFormat("dd/MM/YYY").format($P{fecha}))
++ " HASTA "
++ ( new SimpleDateFormat("dd/MM/YYY").format( $P{fechafinal} ))]]></textFieldExpression>
+			</textField>
+		</band>
+	</summary>
+</jasperReport>

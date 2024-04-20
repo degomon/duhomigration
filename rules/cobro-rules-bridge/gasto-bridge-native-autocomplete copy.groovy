@@ -2,6 +2,7 @@
 GastoBridgeNativeAutocomplete
 Proceso para sincronizar legacy_gasto con C_Payment con Autocomplete
 Solo para legacy_gasto de tipo native
+20240302 - Small enhancements for payment description
 20210812 - First version
 Rule: groovy:GastoBridgeNativeAutocomplete
 Class: @script:groovy:GastoBridgeNativeAutocomplete
@@ -69,7 +70,7 @@ for(GenericPO gas in legacyGastoList){
             int Payment_C_DocType_ID = 1000009; // AP Payment -> Gasto 
             MPayment mp = new MPayment(A_Ctx, 0, A_TrxName);
             mp.setAD_Org_ID(  org.get_ID() );
-            mp.setDescription("Gasto en Ruta | " + usr.getName());
+            mp.setDescription("Gasto en Ruta | " + gas.get_ValueAsString("concepto"));
             mp.setC_BPartner_ID(bp.get_ID());
             mp.setDateAcct(gas.get_Value("fecha"));
             mp.setDateTrx(gas.get_Value("fecha"));
@@ -81,7 +82,7 @@ for(GenericPO gas in legacyGastoList){
             mp.set_ValueOfColumn("updatedby", gas.getUpdatedBy());
             mp.setC_Charge_ID(gas.get_Value("C_Charge_ID"));
             mp.save(A_TrxName); 
-            mp.processIt(DocAction.ACTION_Complete);
+            // mp.processIt(DocAction.ACTION_Complete);
             // Update current legacy cartera
             // car.set_ValueOfColumn("ad_org_id", org.get_ID());
             // BigDecimal localId = (BigDecimal) mp.get_ValueOfColumn("C_Payment_ID");

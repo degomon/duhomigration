@@ -9,8 +9,18 @@
 	<parameter name="orgid" class="java.math.BigDecimal">
 		<defaultValueExpression><![CDATA[]]></defaultValueExpression>
 	</parameter>
+	<parameter name="AD_PINSTANCE_ID" class="java.lang.Integer"/>
 	<queryString>
-		<![CDATA[with sortedpayments as (
+		<![CDATA[with tenant as (
+select
+conf.value::json ->> 'logo-url' as logourl,
+conf.value::json ->> 'company-name' as companyname
+from ad_pinstance pin
+inner join ad_client cli on pin.ad_client_id = cli.ad_client_id
+inner join AD_SysConfig conf on cli.ad_client_id = conf.ad_client_id and conf.name = 'DEVM_CONF'
+where pin.ad_pinstance_id = $P{AD_PINSTANCE_ID}
+),
+sortedpayments as (
 select bac.c_bankaccount_id, bac.value as codigocaja, bac.name as nombrecaja, pay.documentno,
 ch.c_charge_id,
 ch.name as cargo,
@@ -52,11 +62,12 @@ sum(sp.basediaria - sp.desembolsos + sp.cobros - sp.gastos) - sum(sp.enviados) a
  	where bactrans.ad_org_id = org.ad_org_id and bactrans.description ~* 'sucursal') as cajadestinoid,
 (select bactrans.value || '-' || bactrans.name from c_bankaccount bactrans
  	where bactrans.ad_org_id = org.ad_org_id and bactrans.description ~* 'sucursal') as cajadestinoname,
-sp.tipocaja
-from sortedpayments sp
+sp.tipocaja,
+ten.*
+from tenant ten, sortedpayments sp
 inner join c_bankaccount bac on sp.c_bankaccount_id = bac.c_bankaccount_id
 inner join ad_org org on bac.ad_org_id = org.ad_org_id
-group by sp.c_bankaccount_id, sp.codigocaja, sp.nombrecaja, org.ad_org_id, sp.tipocaja, sp.orgname]]>
+group by sp.c_bankaccount_id, sp.codigocaja, sp.nombrecaja, org.ad_org_id, sp.tipocaja, sp.orgname, ten.logourl, ten.companyname]]>
 	</queryString>
 	<field name="c_bankaccount_id" class="java.math.BigDecimal"/>
 	<field name="codigocaja" class="java.lang.String"/>
@@ -74,6 +85,8 @@ group by sp.c_bankaccount_id, sp.codigocaja, sp.nombrecaja, org.ad_org_id, sp.ti
 	<field name="cajadestinoid" class="java.math.BigDecimal"/>
 	<field name="cajadestinoname" class="java.lang.String"/>
 	<field name="tipocaja" class="java.lang.String"/>
+	<field name="logourl" class="java.lang.String"/>
+	<field name="companyname" class="java.lang.String"/>
 	<variable name="basediaria_1" class="java.math.BigDecimal" calculation="Sum">
 		<variableExpression><![CDATA[$F{basediaria}]]></variableExpression>
 	</variable>
@@ -94,13 +107,13 @@ group by sp.c_bankaccount_id, sp.codigocaja, sp.nombrecaja, org.ad_org_id, sp.ti
 	</background>
 	<title>
 		<band height="89" splitType="Stretch">
-			<staticText>
-				<reportElement x="0" y="0" width="572" height="20" uuid="270fdc38-4b6d-418f-8767-194c2c76f2cd"/>
-				<textElement verticalAlignment="Middle">
+			<textField>
+				<reportElement x="0" y="0" width="572" height="20" uuid="af9e1201-25ca-425d-9bab-9aff865147af"/>
+				<textElement verticalAlignment="Middle" markup="none">
 					<font isBold="true"/>
 				</textElement>
-				<text><![CDATA[CREDIVELOZ]]></text>
-			</staticText>
+				<textFieldExpression><![CDATA[$F{companyname}]]></textFieldExpression>
+			</textField>
 			<staticText>
 				<reportElement x="0" y="20" width="572" height="20" uuid="aa85007b-7a10-486b-8960-4175270f310f"/>
 				<textElement verticalAlignment="Middle">
