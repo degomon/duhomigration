@@ -1,0 +1,28 @@
+CREATE TABLE c_bpartner_pic(
+  c_bpartner_pic_id numeric(10, 0) PRIMARY KEY NOT NULL,
+  created timestamp without time zone,
+  createdby numeric(10, 0),
+  updated timestamp without time zone,
+  updatedby numeric(10, 0),
+  c_bpartner_pic_uu character varying(36),
+  c_bpartner_id numeric(10, 0),
+  tipo_operacion character varying,
+  c_country_id numeric,
+  c_country_residence_id numeric,
+  ocupacion character varying,
+  profesion character varying,
+  centro_laboral character varying,
+  descripcion_negocio character varying,
+  tipo_identificacion character varying,
+  rango_ingreso character varying,
+  origen_fondos character varying,
+  referencia_bancaria character varying,
+  fecha_llenado character varying,
+  lugar_llenado character varying,
+  fecha_firma character varying,
+  firma_cliente character varying,
+  elaborado_por character varying,
+  firma_funcionario character varying,
+  memo character varying
+);
+

@@ -8,6 +8,9 @@ DECLARE
   p RECORD;
   cobrec RECORD;
   bprec RECORD;
+  personarec RECORD;
+  credito_personarec RECORD;
+  analista_rec RECORD;
   dias_por_vencer int;
   dias_vencidos int;
   saldo_periodo_principal numeric DEFAULT 0;
@@ -38,6 +41,28 @@ BEGIN
       AD_Reference_ID = 1000021
     );
 
+  DROP TABLE IF EXISTS estadosciviles;
+  CREATE TEMP TABLE estadosciviles AS (
+    SELECT
+      value AS kname,
+      description AS kdesc
+    FROM
+      AD_Ref_List
+    WHERE
+      AD_Reference_ID = 1000013
+    );
+
+  DROP TABLE IF EXISTS generos;
+  CREATE TEMP TABLE generos AS (
+    SELECT
+      value AS kname,
+      description AS kdesc
+    FROM
+      AD_Ref_List
+    WHERE
+      AD_Reference_ID = 1000020
+    );
+
   DROP TABLE IF EXISTS analistas;
   CREATE TEMP TABLE analistas AS (
     SELECT
@@ -45,11 +70,18 @@ BEGIN
       ru.cv_ruta_id,
       coalesce(bp.taxid, '-'
       ) AS cedula,
-      bp.name
-    FROM
-      cv_ruta ru
-    LEFT JOIN ad_user u ON ru.ad_user_id = u.ad_user_id
-    LEFT JOIN c_bpartner bp ON u.c_bpartner_id = bp.c_bpartner_id
+      bp.name AS nombre_analista,
+(
+      SELECT
+        kdesc
+      FROM
+        generos
+      WHERE
+        kname = bp.genero ) ::int AS id_genero
+      FROM
+        cv_ruta ru
+      LEFT JOIN ad_user u ON ru.ad_user_id = u.ad_user_id
+      LEFT JOIN c_bpartner bp ON u.c_bpartner_id = bp.c_bpartner_id
   );
 
   SELECT
@@ -72,7 +104,7 @@ BEGIN
     cardata.fecha::date BETWEEN p.startdate::date AND p.enddate::date
     OR fecha_ultimo_pago BETWEEN p.startdate::date AND p.enddate::date
     OR fecha_ultimo_pago IS NULL
-    -- LIMIT 100  -- make it faster
+    -- LIMIT 100 -- make it faster
     LOOP
       --- verificar si el crédito está vencido
       IF (car.fecha_vencimiento::date < p.enddate::date) THEN
@@ -103,6 +135,92 @@ BEGIN
         INNER JOIN c_bp_group bpg ON bp.c_bp_group_id = bpg.c_bp_group_id
       WHERE
         c_bpartner_id = car.c_bpartner_id INTO bprec;
+      ------------------------------------
+      -- select and insert into personarec
+      ------------------------------------
+      SELECT
+        period_id AS c_period_id,
+        bprec.c_bpartner_id AS c_bpartner_id,
+        bprec.birthday AS fecha_nacimiento,
+        bprec.id_destino_credito AS id_actividad_economica,
+        bprec.taxid AS id_cedula_residencia,
+(
+          SELECT
+            kdesc
+          FROM
+            estadosciviles
+          WHERE
+            kname = bprec.civilstatus)::int AS id_estado_civil,
+(
+          SELECT
+            kdesc
+          FROM
+            generos
+          WHERE
+            kname = bprec.genero)::int AS id_genero,
+(
+          SELECT
+            description
+          FROM
+            cv_ruta
+          WHERE
+            cv_ruta_id = bprec.cv_ruta_id
+          LIMIT 1) AS id_municipio,
+      bprec.taxid AS id_persona, -- cédula
+      1 AS id_tipo_persona, -- asumiento que es natural nacional
+      1 AS id_tipo_documento, -- cédula identidad nica
+      2 AS id_tipo_grupo, -- id_tipo_grupo (económico)
+      bprec.name AS nombre,
+      158 AS id_pais, -- Nicaragua
+      0 AS pep, -- pep
+      0 AS id_tipo_persona_juridica -- id_tipo_persona_juridica no aplica
+      INTO personarec;
+      PERFORM
+        icc_persona_save_or_update(personarec);
+      ------------------------------------
+      -- insert into credito_personarec
+      ------------------------------------
+      SELECT
+        period_id AS c_period_id,
+        car.legacy_cartera_id::character varying AS id_credito,
+        bprec.taxid::character varying AS id_persona,
+        1 AS id_tipo_documento,
+        2 AS id_moneda --
+        INTO credito_personarec;
+
+      PERFORM
+        icc_credito_persona_save_or_update(credito_personarec);
+      ------------------------------------
+      -- insert into analista_rec
+      ------------------------------------
+      SELECT
+        period_id AS c_period_id,
+(
+          SELECT
+            cedula
+          FROM
+            analistas
+          WHERE
+            cv_ruta_id = bprec.cv_ruta_id) AS id_analista,
+(
+          SELECT
+            nombre_analista
+          FROM
+            analistas
+          WHERE
+            cv_ruta_id = bprec.cv_ruta_id) AS nombre,
+(
+          SELECT
+            id_genero
+          FROM
+            analistas
+          WHERE
+            cv_ruta_id = bprec.cv_ruta_id) AS id_genero INTO analista_rec;
+
+      PERFORM
+        icc_analista_save_or_update(analista_rec);
+      ----------------
+      -- let's save it
       INSERT INTO adempiere.icc_credito(legacy_cartera_id, --01
         c_period_id, --02
         cantidad_cuotas, --03
@@ -208,7 +326,7 @@ BEGIN
               description
             FROM cv_ruta
             WHERE
-              cv_ruta_id = bprec.cv_ruta_id LIMIT 1), --20 id_municipio
+              cv_ruta_id = bprec.cv_ruta_id LIMIT 1)::int, --20 id_municipio
           1, --21 id_oficina
           1, --22 id_origen_recursos
           1, --23 id_periodo_cobro_interes
@@ -295,6 +413,11 @@ BEGIN
 );
 
     END LOOP;
+
+
+  /*** Start the rest of the process for month end ***/
+  PERFORM
+    icc_recuperaciones_periodo_process(period_id);
 END
 $$
 LANGUAGE plpgsql;
