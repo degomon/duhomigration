@@ -15,6 +15,7 @@ import org.compiere.util.Env;
 import org.compiere.util.CLogger;
 import java.util.logging.Level;
 import org.compiere.model.MPayment;
+import org.compiere.model.MInvoice;
 import org.compiere.model.MOrg;
 import org.compiere.process.DocAction;
 import org.compiere.process.ProcessInfoParameter;
@@ -48,6 +49,7 @@ List<MPayment> draftPayments = new Query(A_Ctx, "C_Payment",
 int i = 0;
 for(MPayment mp in draftPayments){
     i = i+1;
+    try{
     String quickLog = new StringBuffer("====> Completando Pago (" + org.getName() + ") ")
         .append(i.toString() + " de " + draftPayments.size().toString() + " <===== ")
         .append("ID: " + mp.getC_Payment_ID().toString() + " ")
@@ -61,6 +63,42 @@ for(MPayment mp in draftPayments){
             .append ( " TipoDoc: " + mp.getC_DocType().getName() )
             .append ( " Tercero: " +  bpName ); 
     A_ProcessInfo.addLog(0,null,null, currentMessage.toString() );
+    }
+    catch(Exception e){
+        String currentMessage = new StringBuffer("Error al completar payment: " + mp.getDocumentNo())
+            .append ( " Date: " + mp.getDateAcct().toString() )
+            .append ( " TipoDoc: " + mp.getC_DocType().getName() )
+            .append ( " Error: " + e.getMessage() );
+        A_ProcessInfo.addLog(0,null,null, "Error: " + currentMessage.toString() ); 
+        if(e.getMessage().contains("@IsPaid@")){
+            List<MInvoice> invs = new Query(A_Ctx, MInvoice.Table_Name, "C_BPartner_ID = ? and isPaid = 'N' ", A_TrxName)
+                .setParameters([ mp.getC_BPartner_ID() ])
+                .list();
+
+            // get the first MInvoice if any
+            if(invs.size()>0){
+                MInvoice inv = invs.get(0);
+                mp.setC_Invoice_ID(inv.get_ID());
+                mp.save(A_TrxName); 
+                mp.processIt(DocAction.ACTION_Complete);
+                A_ProcessInfo.addLog(0,null,null, "Pago: " + mp.getDocumentNo() + " asociado a Factura: " + inv.getDocumentNo() );
+            }else{
+                String invMessage = new StringBuffer(" [No se encontró invoice a asociar pago] Payment: " + mp.getDocumentNo())
+                    .append ( " Date: " + mp.getDateAcct().toString() )
+                    .append ( " TipoDoc: " + mp.getC_DocType().getName() )
+                    .append ( " BP: " + mp.getC_BPartner().getName() )
+                    .toString();
+            A_ProcessInfo.addLog(0,null,null, "Error: " + invMessage );
+            }
+        }else{
+            String invMessage = new StringBuffer("[Error al completar Pago]: " + mp.getDocumentNo())
+                .append ( " Date: " + mp.getDateAcct().toString() )
+                .append ( " TipoDoc: " + mp.getC_DocType().getName() )
+                .append ( " Error: " + e.getMessage() )
+                .toString();
+            A_ProcessInfo.addLog(0,null,null, "Error: " + invMessage );
+        }
+    }
 }
 
 return "";

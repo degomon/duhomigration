@@ -59,6 +59,7 @@ List<GenericPO> legacyCartera = new Query(A_Ctx, "legacy_cartera",
 for(GenericPO car in legacyCartera){
     workNumber = workNumber + 1;
     System.out.println("CarteraBridgeNative:: Procesando  [" + workNumber + " de " + legacyCartera.size() + "] ==> BPID:> " + car.get_Value("c_bpartner_id"));    
+    A_ProcessInfo.addLog(0,null,null,"CarteraBridgeNative:: Procesando  [" + workNumber + " de " + legacyCartera.size() + "]  CarteraID: " + car.get_ValueAsInt("legacy_cartera_id") + " | BPID:> " + car.get_Value("c_bpartner_id") );
     /* if(workNumber==4) 
         break; */
     StringBuilder sb = new StringBuilder();

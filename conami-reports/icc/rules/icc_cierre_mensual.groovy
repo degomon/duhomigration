@@ -25,8 +25,6 @@ import org.compiere.process.ProcessInfoParameter;
 
 CLogger log = CLogger.getCLogger(GenericPO.class);
 
-MOrg org = null;
-MCity city = null;
 int period_id = 0;
 
 ProcessInfoParameter[] para = A_Parameter;

@@ -36,7 +36,7 @@ for (int i = 0; i < para.length; i++) {
         csvFile = para[i].getParameterAsString();
     else
         log.log(Level.SEVERE, "Unknown Parameter: " + name);
-}
+}   
 
 List<List<String>> records = new ArrayList<>();
 try (BufferedReader br = new BufferedReader(new FileReader(csvFile))) {
@@ -45,7 +45,7 @@ try (BufferedReader br = new BufferedReader(new FileReader(csvFile))) {
         /* String[] values = line.split(COMMA_DELIMITER);
         records.add(Arrays.asList(values)); */
         List<String> values = new ArrayList<String>(Arrays.asList(line.split(";")));
-        String cedula = values.get(2);
+            String cedula = values.get(2);
             String nombre = values.get(3);
             String direccion = values.get(4);
             String telefono = values.get(5);

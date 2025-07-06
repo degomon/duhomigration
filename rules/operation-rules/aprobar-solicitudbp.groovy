@@ -53,9 +53,18 @@ if(solicitudBP==null || solicitudid==0){
 
 
 org = MOrg.get(A_Ctx, solicitudBP.getAD_Org_ID() );
+
+if (null==org){
+    result = "ERROR: Organización no es válida";
+    return;
+}
 city = new Query(A_Ctx,"C_City", "name ilike ?", A_TrxName)
     				.setParameters([ org.getInfo().getFax() ])
     				.first(); 
+if(city==null){
+    result = "ERROR: No se encontró una Ciudad asociada a la Sucursal";
+    return "ERROR: No se encontró una Ciudad asociada a la Sucursal";;
+}
 System.out.println("City was found: " + city.getName());
 String cedula = solicitudBP.get_ValueAsString("cedula").replace(" ", "").replace("-", "");
 String nombre = solicitudBP.get_ValueAsString("nombre");
@@ -87,14 +96,7 @@ if("Y".equals(procesado)){
     return "ERROR: Esta solicitud ya fue procesada anteriormente.";
 }
 
-if (null==org){
-    result = "ERROR: Organización no es válida";
-    return;
-}
-if(city==null){
-    result = "ERROR: No se encontró una Ciudad asociada a la Sucursal";
-    return "ERROR: No se encontró una Ciudad asociada a la Sucursal";;
-}
+
 
 // Create BP 
 MBPartner bp = new MBPartner(A_Ctx, 0, A_TrxName);
