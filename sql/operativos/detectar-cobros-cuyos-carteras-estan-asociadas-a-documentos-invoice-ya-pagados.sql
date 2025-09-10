@@ -56,7 +56,7 @@ FROM
     WHERE
       saldo > 0
       AND c_bpartner_id = bptofix.c_bpartner_id
-      AND fecha >= '20240901'::date
+      AND fecha >= '20250701'::date
     ORDER BY
       fecha ASC
     LIMIT 1

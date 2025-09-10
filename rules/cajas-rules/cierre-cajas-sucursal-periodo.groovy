@@ -125,7 +125,7 @@ while (rs.next()) {
     " pay.payamt as monto, " +
     " case when dt.docbasetype = 'ARR' and pay.c_charge_id = 1000034 then pay.payamt else 0.00 end as basediaria, " +
     " case when dt.docbasetype = 'APP' and pay.c_charge_id = 1000030 then pay.payamt else 0.00 end as desembolsos, " +
-    " case when dt.docbasetype = 'ARR' and pay.c_invoice_id is not null then pay.payamt else 0.00 end as cobros, " +
+    " case when dt.docbasetype = 'ARR' and pay.c_doctype_id in (1000050) then pay.payamt else 0.00 end as cobros, " +
     " case when dt.docbasetype = 'APP' and pay.c_charge_id not in (1000034,1000030) then pay.payamt else 0.00 end as gastos, " +
     " case when dt.docbasetype = 'ARR' and pay.c_charge_id = 1000034 then pay.payamt else 0.00 end as recibidos, " +
     " case when ( dt.docbasetype = 'APP' and pay.c_charge_id = 1000034 ) then pay.payamt else 0.00 end as enviados, " +

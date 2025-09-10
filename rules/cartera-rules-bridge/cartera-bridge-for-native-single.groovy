@@ -166,7 +166,7 @@ try {
                             if (cantidadCuotas == 30) payment_term_id = 1000002
                             if (cantidadCuotas == 50) payment_term_id = 1000003
 
-                            int Nota_C_DocType_ID = 1000051 // Financiamiento
+                            int Nota_C_DocType_ID = 1000048 // Financiamiento
                             MInvoice invoice = new MInvoice(A_Ctx, 0, A_TrxName)
                             invoice.setAD_Org_ID(org.get_ID())
                             invoice.setDateAcct(car.get_Value('fecha'))

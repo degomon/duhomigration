@@ -162,7 +162,10 @@ try {
 
             mp.processIt(DocAction.ACTION_Complete); mp.saveEx()
 
-            car.set_ValueOfColumn('synced', 'Y'); car.set_ValueOfColumn('local_id', invoice.get_ID()); car.set_ValueOfColumn('payment_id', mp.get_ID())
+            car.set_ValueOfColumn('synced', 'Y');
+            car.set_ValueOfColumn('local_id', invoice.get_ID()); 
+            car.set_ValueOfColumn('payment_id', mp.get_ID())
+            car.set_ValueOfColumn('concepto', 'MODO-02'); // La forma en que se crea la cartera
             car.save(trxName)
 
             crearCuotasPagoFlat(A_ProcessInfo, invoice, car, cantidadCuotas, montoTotal)

@@ -25,6 +25,11 @@ import java.util.logging.Level;
 // ==========================================================================
 @Field final int INTERES_CHARGE_ID = 1000029;
 @Field final int INTERES_DOCTYPE_ID = 1000051; // Interés
+@Field final int CURRENCY_ID = 209
+@Field final int SALES_REP_ID = 1000000
+@Field final int PRICE_LIST_ID = 1000001
+@Field final int TAX_ID = 1000000
+
 
 // ==========================================================================
 //    CAMPOS Y FUNCIONES HELPER
@@ -116,6 +121,8 @@ try {
         interestInvoice.setC_BPartner_ID(bPartnerID);
         interestInvoice.setC_BPartner_Location_ID(originalInvoice.getC_BPartner_Location_ID());
         interestInvoice.set_ValueOfColumn("legacy_data", scheduleID.toString());
+        interestInvoice.setSalesRep_ID(SALES_REP_ID); 
+        interestInvoice.setM_PriceList_ID(PRICE_LIST_ID)
         interestInvoice.setIsSOTrx(true);
         interestInvoice.setDescription("Factura por interés de cuota ID ${scheduleID} con vencimiento " + schedule.get_Value("DueDate").toString().substring(0, 10));
         interestInvoice.saveEx(A_TrxName);
@@ -124,6 +131,7 @@ try {
         interestLine.setC_Charge_ID(INTERES_CHARGE_ID);
         interestLine.setQty(BigDecimal.ONE);
         interestLine.setPrice(dueAmt);
+        interestLine.setC_Tax_ID(TAX_ID);
         interestLine.saveEx(A_TrxName);
 
         interestInvoice.processIt(DocAction.ACTION_Complete);

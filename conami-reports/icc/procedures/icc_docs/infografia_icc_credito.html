@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infografía del Proceso de Cálculo: icc_credito</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-900 mb-2">Proceso de Cálculo de Cartera</h1>
+            <p class="text-lg text-gray-600">Una visión profunda de la función `icc_credito_por_periodo`</p>
+        </header>
+
+        <section id="objetivo" class="mb-16">
+            <h2 class="text-3xl font-bold text-center mb-8 text-indigo-600">1. Objetivo de la Función</h2>
+            <div class="grid md:grid-cols-3 gap-8 text-center">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="text-5xl mb-4">📈</div>
+                    <h3 class="text-xl font-semibold mb-2">Seleccionar Créditos</h3>
+                    <p>Identifica todos los créditos activos durante un período contable específico.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="text-5xl mb-4">🧮</div>
+                    <h3 class="text-xl font-semibold mb-2">Calcular Saldos</h3>
+                    <p>Calcula los saldos de capital e interés para cada crédito a la fecha de cierre.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="text-5xl mb-4">💾</div>
+                    <h3 class="text-xl font-semibold mb-2">Poblar Reportes</h3>
+                    <p>Almacena los datos consolidados en la tabla `icc_credito` para su análisis.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="entidades" class="mb-16">
+            <h2 class="text-3xl font-bold text-center mb-8 text-indigo-600">2. Entidades Involucradas</h2>
+            <div class="bg-white p-8 rounded-lg shadow-md">
+                <div class="flex flex-col md:flex-row items-center justify-center space-y-8 md:space-y-0 md:space-x-8">
+                    
+                    <div class="text-center">
+                        <div class="p-4 bg-blue-100 text-blue-700 rounded-lg shadow">legacy_cartera</div>
+                        <div class="mt-2 text-sm text-gray-500">Monto, Tasa, Plazo</div>
+                    </div>
+                    
+                    <div class="text-5xl text-gray-400 font-thin">+</div>
+
+                    <div class="text-center">
+                        <div class="p-4 bg-green-100 text-green-700 rounded-lg shadow">legacy_cobro</div>
+                        <div class="mt-2 text-sm text-gray-500">Total de Abonos</div>
+                    </div>
+
+                    <div class="text-5xl text-gray-400 font-thin">+</div>
+
+                     <div class="text-center">
+                        <div class="p-4 bg-purple-100 text-purple-700 rounded-lg shadow">get_dias_efectivos</div>
+                        <div class="mt-2 text-sm text-gray-500">Días Transcurridos</div>
+                    </div>
+
+                    <div class="text-5xl text-gray-400 font-thin">→</div>
+
+                    <div class="text-center">
+                        <div class="p-4 bg-red-100 text-red-700 rounded-lg shadow">icc_credito</div>
+                        <div class="mt-2 text-sm text-gray-500">Tabla de Resultados</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="logica" class="mb-16">
+            <h2 class="text-3xl font-bold text-center mb-8 text-indigo-600">3. Lógica de Cálculo Principal</h2>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-semibold mb-4">Paso 1: Interés Devengado</h3>
+                    <p class="mb-4">Es el interés teórico generado por el crédito hasta la fecha de corte.</p>
+                    <div class="bg-gray-50 p-4 rounded-md text-sm">
+                        <code class="font-mono">(Monto Principal * Tasa / Plazo) * Días Efectivos</code>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-semibold mb-4">Paso 2: Prorrateo y Saldos</h3>
+                    <p class="mb-2">Se aplica la regla de negocio: <strong class="text-indigo-600">"Interés primero, capital después"</strong>.</p>
+                    <ul class="list-disc list-inside space-y-2">
+                        <li><span class="font-semibold">Saldo de Interés:</span> `GREATEST(0, Interés Devengado - Total Abonos)`</li>
+                        <li><span class="font-semibold">Saldo de Principal:</span> `GREATEST(0, Monto - (Total Abonos - Interés Devengado))`</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="ejemplos" class="mb-16">
+            <h2 class="text-3xl font-bold text-center mb-8 text-indigo-600">4. Ejemplos Prácticos</h2>
+            <div class="grid md:grid-cols-1 lg:grid-cols-2 gap-8">
+                
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <h3 class="text-2xl font-bold mb-4">Ejemplo 1: Crédito Cancelado</h3>
+                    <p class="text-sm text-gray-500 mb-4">legacy_cartera_id = 10599341</p>
+                    <div class="chart-container mb-4">
+                        <canvas id="ejemplo1Chart"></canvas>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-lg">Con un pago total de <span class="font-bold text-green-600">C$6,900</span>, se cubren los <span class="font-bold text-blue-600">C$6,000</span> de capital y los <span class="font-bold text-red-600">C$900</span> de interés.</p>
+                        <p class="text-2xl font-bold mt-4">Saldo Final: <span class="text-green-600">C$0</span></p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <h3 class="text-2xl font-bold mb-4">Ejemplo 2: Crédito Activo</h3>
+                    <p class="text-sm text-gray-500 mb-4">legacy_cartera_id = 10606107</p>
+                     <div class="chart-container mb-4">
+                        <canvas id="ejemplo2Chart"></canvas>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-lg">De <span class="font-bold text-green-600">C$2,750</span> pagados, <span class="font-bold text-red-600">C$405</span> cubren el interés devengado y <span class="font-bold text-blue-600">C$2,345</span> se abonan al capital.</p>
+                        <p class="text-2xl font-bold mt-4">Saldo de Capital: <span class="text-orange-600">C$655</span></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        const tooltipTitleCallback = function(tooltipItems) {
+            const item = tooltipItems[0];
+            let label = item.chart.data.labels[item.dataIndex];
+            if (Array.isArray(label)) {
+                return label.join(' ');
+            } else {
+                return label;
+            }
+        };
+        
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    callbacks: {
+                        title: tooltipTitleCallback
+                    }
+                }
+            }
+        };
+
+        const ejemplo1Data = {
+            labels: ['Monto Principal', 'Interés Total', 'Total Pagado'],
+            datasets: [{
+                label: 'Monto en C$',
+                data: [6000, 900, 6900],
+                backgroundColor: [
+                    'rgba(59, 130, 246, 0.7)',
+                    'rgba(239, 68, 68, 0.7)',
+                    'rgba(22, 163, 74, 0.7)'
+                ],
+                borderColor: [
+                    'rgba(59, 130, 246, 1)',
+                    'rgba(239, 68, 68, 1)',
+                    'rgba(22, 163, 74, 1)'
+                ],
+                borderWidth: 1
+            }]
+        };
+        new Chart(document.getElementById('ejemplo1Chart'), {
+            type: 'bar',
+            data: ejemplo1Data,
+            options: commonOptions
+        });
+
+        const ejemplo2Data = {
+            labels: ['Monto Principal', 'Interés Devengado', 'Total Pagado', 'Saldo Capital'],
+            datasets: [{
+                label: 'Monto en C$',
+                data: [3000, 405, 2750, 655],
+                 backgroundColor: [
+                    'rgba(59, 130, 246, 0.7)',
+                    'rgba(239, 68, 68, 0.7)',
+                    'rgba(22, 163, 74, 0.7)',
+                    'rgba(249, 115, 22, 0.7)'
+                ],
+                borderColor: [
+                    'rgba(59, 130, 246, 1)',
+                    'rgba(239, 68, 68, 1)',
+                    'rgba(22, 163, 74, 1)',
+                    'rgba(249, 115, 22, 1)'
+                ],
+                borderWidth: 1
+            }]
+        };
+        new Chart(document.getElementById('ejemplo2Chart'), {
+            type: 'bar',
+            data: ejemplo2Data,
+            options: commonOptions
+        });
+    </script>
+</body>
+</html>
