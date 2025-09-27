@@ -18,8 +18,12 @@ BEGIN
   -- Eliminar los registros existentes para el período actual.
   DELETE FROM icc_credito
   WHERE c_period_id = period_id;
-  -- NOTA: No eliminamos de icc_persona, icc_credito_persona o icc_analista
-  -- porque ahora la lógica de UPDATE/INSERT los manejará.
+  DELETE FROM icc_persona
+  WHERE c_period_id = period_id;
+  DELETE FROM icc_credito_persona
+  WHERE c_period_id = period_id;
+  DELETE FROM icc_analista
+  WHERE c_period_id = period_id;
   -- Usar Common Table Expressions (CTEs) para un procesamiento basado en conjuntos.
   WITH cartera_activa AS (
     -- 1. Seleccionar la cartera relevante para el período.
@@ -45,39 +49,53 @@ abonos_calculados AS (
   GROUP BY
     id_cartera
 ),
+movimientos_periodo AS (
+  -- 3. Calcular abonos y días efectivos dentro del período
+  SELECT
+    id_cartera,
+    COALESCE(SUM(abono), 0.00) AS abonos_en_periodo
+  FROM
+    legacy_cobro
+  WHERE
+    operacion::date BETWEEN p.startdate::date AND p.enddate::date
+  GROUP BY
+    id_cartera
+),
 saldos_calculados AS (
-  -- 3. Unir la cartera con sus abonos y calcular saldos e intereses.
+  -- 4. Unir la cartera con sus abonos y calcular saldos e intereses.
   SELECT
     ca.*,
     ac.total_abonos,
+    ac.cantidad_cuotas,
     ac.total_abonos *(1 - ca.tasa) AS total_abonos_principal,
     ac.total_abonos *(ca.tasa) AS total_abonos_interes,
-    ac.cantidad_cuotas,
     ca.dias_cre - ac.cantidad_cuotas AS cuotas_restantes,
     ac.fecha_ultimo_pago,
 (ca.montototal - ac.total_abonos) AS saldo_cierre,
-    -- AJUSTE: Se simplifica el cálculo para usar siempre los días efectivos transcurridos.
-(ca.monto * ca.tasa / ca.dias_cre) *(LEAST(GREATEST(0, adempiere.get_dias_efectivos(ca.fecha::date, p.enddate::date)), ca.dias_cre)) AS interes_devengado
+(ca.monto * ca.tasa / 365.25) * adempiere.get_dias_efectivos(GREATEST(ca.fecha::date, p.startdate::date), p.enddate::date) AS interes_devengado_en_periodo,
+    mp.abonos_en_periodo
   FROM
     cartera_activa ca
-    JOIN abonos_calculados ac ON ca.legacy_cartera_id = ac.id_cartera
-  WHERE (ca.montototal - ac.total_abonos) > 0
+    LEFT JOIN abonos_calculados ac ON ca.legacy_cartera_id = ac.id_cartera
+    LEFT JOIN movimientos_periodo mp ON ca.legacy_cartera_id = mp.id_cartera
+  WHERE (ca.montototal - COALESCE(ac.total_abonos, 0)) > 0
   OR ca.fecha::date BETWEEN p.startdate::date AND p.enddate::date
   OR ac.fecha_ultimo_pago BETWEEN p.startdate::date AND p.enddate::date
 ),
 datos_enriquecidos AS (
-  -- 4. Unir con tablas de negocio y de referencia para consolidar toda la información.
+  -- 5. Unir con tablas de negocio y de referencia para consolidar toda la información.
   SELECT
     s.*,
     p.enddate::date AS fecha_corte,
 (s.fecha_vencimiento < p.enddate::date) AS creditovencido,
 (p.enddate::date - s.fecha_vencimiento) AS dias_vencidos,
 (s.fecha_vencimiento - p.enddate::date) AS dias_por_vencer,
-    -- AJUSTE: Se aplica la lógica de "interés primero, capital después".
     -- Saldo de Principal: Es el monto original menos el abono que sobra después de pagar el interés.
-    GREATEST(0, s.monto - GREATEST(0, s.total_abonos_principal)) AS saldo_periodo_principal,
-    -- Saldo de Interés: Es el interés devengado menos el abono aplicado a interés.
-    GREATEST(0, s.interes_devengado - s.total_abonos_interes) AS saldo_periodo_interes,
+    GREATEST(0, s.monto - s.total_abonos_principal) AS saldo_periodo_principal,
+    -- Saldo de Interés: Es el interés devengado acumulado menos el abono aplicado a interés acumulado
+    GREATEST(0, s.total_abonos - s.total_abonos_principal) AS saldo_periodo_interes,
+    -- Porción de los abonos del periodo que se aplican a interés
+    COALESCE(s.abonos_en_periodo * s.tasa /(1 + s.tasa), 0.00) AS abono_interes_en_periodo,
     bp.name AS nombre_cliente,
     bp.taxid,
     bp.birthday,
@@ -139,7 +157,7 @@ datos_enriquecidos AS (
               LEFT JOIN ad_user u ON ruta.ad_user_id = u.ad_user_id
               LEFT JOIN c_bpartner bp_user ON u.c_bpartner_id = bp_user.c_bpartner_id
 ),
--- 5. Lógica de "UPSERT" (UPDATE/INSERT) para las tablas dimensionales.
+-- 6. Lógica de "UPSERT" (UPDATE/INSERT) para las tablas dimensionales.
 -- icc_persona
 updated_persona AS (
   UPDATE
@@ -280,8 +298,6 @@ SELECT
   cantidad_cuotas, -- 03 cantidad_cuotas
   0, -- 04 cantidad_prorrogas
   0.00, -- 05 comision_acumulada_por_cobrar
-  -- 0.00, -- 06 cuotas_vencidas
-  -- IIF(creditovencido, cuotas_restantes, 0.0), -- 06 cuotas_vencidas
   CASE WHEN creditovencido THEN
     cuotas_restantes
   ELSE
@@ -308,8 +324,8 @@ SELECT
   NULL, -- 25 id_sindicado
   1, -- 26 id_situacion_credito
   1, -- 27 id_tipo_agrupacion_credito
-  saldo_periodo_interes, -- 28 interes_corriente
-  IIF(creditovencido, saldo_periodo_interes, 0.00), -- 29 interes_vencidos
+  GREATEST(0, interes_devengado_en_periodo - abono_interes_en_periodo), -- 28 interes_corriente
+IIF(creditovencido, saldo_periodo_interes, 0.00), -- 29 interes_vencidos
 0.00, -- 30 mto_adjudicacion_credito
 iif(creditovencido
   AND dias_por_vencer BETWEEN 0 AND 30, saldo_periodo_interes, 0.00), -- 31 mto_intereses_por_vencer_030
@@ -371,6 +387,4 @@ FROM
 
 END
 $BODY$;
-
-ALTER FUNCTION adempiere.icc_credito_por_periodo(numeric) OWNER TO adempiere;
 

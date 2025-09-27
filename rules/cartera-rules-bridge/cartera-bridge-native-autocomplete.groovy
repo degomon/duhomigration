@@ -1,7 +1,7 @@
 /**
  * CarteraBridgeNativeAutocomplete
  * Proceso para sincronizar legacy_cartera con C_Invoice y C_Payment de forma masiva.
- *
+ * 20250927 - corrección en monto de schedule interés
  * Versión: 20250705 (Final y Corregido)
  */
 import org.compiere.model.Query
@@ -58,9 +58,9 @@ def esDomingo = { Date fecha ->
 def crearCuotasPagoFlat = { ProcessInfo pi, MInvoice invoice, GenericPO cartera, int numCuotas, BigDecimal montoTotal ->
     String trxName = invoice.get_TrxName()
     int carteraID = cartera.get_ValueAsInt('legacy_cartera_ID')
-    BigDecimal cuotaNivelada = montoTotal.divide(BigDecimal.valueOf(numCuotas), 2, RoundingMode.HALF_UP)
-
-    pi.addLog(0, null, null, "    -> Creando schedule para Invoice ${invoice.getDocumentNo()}, Cuotas: ${numCuotas}, Monto Cuota: ${cuotaNivelada} Org de Cartera: ${cartera.getAD_Org_ID()} ")
+    BigDecimal interesTotal = cartera.get_Value('valorinteres')
+    BigDecimal cuotaInteres = interesTotal.divide(BigDecimal.valueOf(numCuotas), 4, RoundingMode.HALF_UP)
+    pi.addLog(0, null, null, "    -> Creando schedule para Invoice ${invoice.getDocumentNo()}, Cuotas: ${numCuotas}, Monto Cuota: ${cuotaInteres} Org de Cartera: ${cartera.getAD_Org_ID()} ")
 
     DB.executeUpdate('DELETE FROM legacy_schedule WHERE legacy_cartera_ID = ?', [carteraID] as Object[], true, trxName)
 
@@ -80,7 +80,7 @@ def crearCuotasPagoFlat = { ProcessInfo pi, MInvoice invoice, GenericPO cartera,
     
         cuota.set_ValueOfColumn('C_Invoice_ID', invoice.getC_Invoice_ID())
         cuota.set_ValueOfColumn('legacy_cartera_ID', carteraID)
-        cuota.set_ValueOfColumn('DueAmt', cuotaNivelada)
+        cuota.set_ValueOfColumn('DueAmt', cuotaInteres)
         cuota.set_ValueOfColumn('DueDate', fechaCuota)
         cuota.set_ValueOfColumn('IsActive', 'Y')
         cuota.saveEx(trxName)
