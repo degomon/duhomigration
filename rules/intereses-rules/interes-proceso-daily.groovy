@@ -1,7 +1,7 @@
 /**
  * InteresProcesoDaily
  * Proceso para generar facturas de interés basadas en el plan de pagos (legacy_schedule).
- *
+ * 20250928 - agregamos ref_invoice_id a legacy_schedule para referencia futura
  * Versión: 20250705 (Corregido)
  */
 
@@ -138,6 +138,7 @@ try {
         interestInvoice.saveEx(A_TrxName);
 
         schedule.set_ValueOfColumn("Processed", "Y");
+        schedule.set_ValueOfColumn("Ref_Invoice_ID", interestInvoice.get_ID());
         schedule.saveEx(A_TrxName);
 
         logProcess("✔️ OK: Factura ${interestInvoice.getDocumentNo()} creada para la cuota ID ${scheduleID}.");
