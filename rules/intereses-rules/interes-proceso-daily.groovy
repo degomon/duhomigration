@@ -19,6 +19,8 @@ import groovy.transform.Field;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.util.logging.Level;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 
 // ==========================================================================
 //    CONFIGURACIÓN
@@ -43,6 +45,35 @@ def logProcess(String message) {
     log.info(message);
 }
 
+List<Integer> getPendingScheduleIDs(Timestamp processDate) {
+    List<Integer> idList = new ArrayList<Integer>();
+    String baseSql = "SELECT legacy_schedule_id FROM legacy_schedule WHERE TRUNC(DueDate) = ? AND (Processed IS NULL OR Processed = 'N') AND IsActive = 'Y' ORDER BY Created DESC";
+    String sql;
+    final int RECORD_LIMIT = 100;
+
+    if (DB.isOracle()) {
+        sql = "SELECT * FROM (" + baseSql + ") WHERE ROWNUM <= " + RECORD_LIMIT;
+    } else { // Assumes PostgreSQL, MySQL, or other DBs supporting LIMIT
+        sql = baseSql + " LIMIT " + RECORD_LIMIT;
+    }
+
+    PreparedStatement pstmt = null;
+    ResultSet rs = null;
+    try {
+        pstmt = DB.prepareStatement(sql, null); // Read-only query, no transaction name needed
+        pstmt.setTimestamp(1, processDate);
+        rs = pstmt.executeQuery();
+        while (rs.next()) {
+            idList.add(rs.getInt(1));
+        }
+    } catch (Exception e) {
+        throw new AdempiereException("Error getting pending schedule IDs.", e);
+    } finally {
+        DB.close(rs, pstmt);
+    }
+    return idList;
+}
+
 try {
     logProcess("✅ Iniciando proceso diario de generación de intereses...");
 
@@ -62,31 +93,26 @@ try {
 
     logProcess("🗓️ Fecha de procesamiento: " + today.toString().substring(0, 10));
 
-    String whereClause = "TRUNC(DueDate) = ? AND (Processed IS NULL OR Processed = 'N') AND IsActive = 'Y'";
-    List<GenericPO> schedulesToProcess = new Query(A_Ctx, "legacy_schedule", whereClause, A_TrxName)
-        .setParameters([today])
-        .list();
+    List<Integer> scheduleIDs = getPendingScheduleIDs(today);
 
-    if (schedulesToProcess.isEmpty()) {
+    if (scheduleIDs.isEmpty()) {
         result = "Proceso finalizado. No se encontraron cuotas para procesar en la fecha de hoy.";
         logProcess(result);
         return result;
     }
 
-    logProcess("🔍 Se encontraron ${schedulesToProcess.size()} cuotas para procesar.");
+    logProcess("🔍 Se encontraron ${scheduleIDs.size()} cuotas para procesar.");
 
-    for (GenericPO schedule in schedulesToProcess) {
-        
-        // ----- CORRECCIÓN AQUÍ -----
-        // Se añade validación para asegurar que el registro tenga una Organización
-        if (schedule.getAD_Org_ID() <= 0) {
-            logProcess("⚠️ ADVERTENCIA: Se omitió cuota ID ${schedule.get_ID()} porque no tiene una Organización (AD_Org_ID) asignada.");
+    for (int scheduleID in scheduleIDs) {
+        GenericPO schedule = new Query(A_Ctx, "legacy_schedule", "legacy_schedule_id = ?", A_TrxName)
+            .setParameters(scheduleID)
+            .first();
+
+        if (schedule == null) {
+            logProcess("⏭️ Se omite cuota ID ${scheduleID}: no se pudo cargar (posiblemente eliminada).");
             skippedCount++;
-            continue; // Saltar al siguiente registro
+            continue;
         }
-        // ----- FIN DE LA CORRECCIÓN -----
-        
-        int scheduleID = schedule.get_ID();
 
         String checkSQL = "SELECT COUNT(*) FROM C_Invoice WHERE legacy_data = ? AND DocStatus IN ('CO', 'CL')";
         int existingInvoiceCount = DB.getSQLValue(A_TrxName, checkSQL, scheduleID.toString());

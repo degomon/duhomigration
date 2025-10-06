@@ -44,7 +44,7 @@ import groovy.transform.Field;
 //    CONFIGURACIÓN
 // ==========================================================================
 @Field final int ALLOCATION_DOCTYPE_ID = 1000051; // Asignación de Cobros
-@Field final int RECORD_LIMIT = 10; // Límite de pagos a procesar en cada ejecución. 0 para sin límite.
+@Field final int RECORD_LIMIT = 100; // Límite de pagos a procesar en cada ejecución. 0 para sin límite.
 
 // ==========================================================================
 //    CAMPOS Y CONTEXTO GLOBAL
