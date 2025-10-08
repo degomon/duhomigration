@@ -34,12 +34,12 @@ select
     coalesce( (select documentno from c_invoice inv
     where inv.c_invoice_id = car.local_id), car.id_cartera::character varying) as documentno,
     car.montototal as debito,
-    coalesce(sum(cob.abono),0.00)::numeric as credito,
+    get_abonos_up_to_date(car.legacy_cartera_id, $P{fecha_corte}::date) as credito,
     car.monto as capital,
     car.monto * car.tasa as interes,
-    car.montototal - coalesce(sum(cob.abono),0.00)::numeric as saldo,
-    (car.monto - (coalesce(sum(cob.abono),0.00)::numeric * (1 - car.tasa) ))  as saldo_principal,
-    ((car.monto * car.tasa) - ( coalesce(sum(cob.abono),0.00)::numeric * car.tasa )) as saldo_interes,
+    car.montototal - get_abonos_up_to_date(car.legacy_cartera_id, $P{fecha_corte}::date) as saldo,
+    (car.monto - (get_abonos_up_to_date(car.legacy_cartera_id, $P{fecha_corte}::date) * (1 - car.tasa) ))  as saldo_principal,
+    ((car.monto * car.tasa) - ( get_abonos_up_to_date(car.legacy_cartera_id, $P{fecha_corte}::date) * car.tasa )) as saldo_interes,
     coalesce(  (select max(cobq.operacion::date)
                 from legacy_cobro cobq
                 where cobq.id_cartera = car.legacy_cartera_id and cobq.abono > 0
