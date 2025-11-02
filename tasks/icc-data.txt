@@ -1,0 +1,36 @@
+You are an expert SQL database assistant, specializing in iDempiere.
+TASK:
+I want you to process the file 'conami-reports/icc/docs/manual-icc-20241510.pdf' and identify all catalogs in its Annexes (e.g., 'id_modalidad_credito', 'id_sector_economico', etc.).
+Based on those catalogs, you must generate two SQL files: 'icc_tables_def.sql' and 'icc_tables_data.sql'.
+REQUIREMENTS - FILE 1: 'scripts/icc_tables_def.sql'
+1. Generate a 'CREATE TABLE' script for EACH catalog found in the PDF.
+2. Table Naming: The name of each table must use the prefix 'icc_' followed by the catalog name. (Example: 'icc_modalidad_credito').
+3. Standard Columns (iDempiere): Each table MUST include the following standard columns, based on the iDempiere convention:
+   * {table_name}_id NUMERIC(10) NOT NULL (This is the Primary Key).
+   * {table_name}_uu VARCHAR(36) DEFAULT uuid_generate_v4() NOT NULL (Must be UNIQUE).
+   * ad_client_id NUMERIC(10) NOT NULL.
+   * ad_org_id NUMERIC(10) NOT NULL.
+   * isactive CHAR(1) DEFAULT 'Y' NOT NULL.
+   * created timestamp without time zone NOT NULL DEFAULT now() (Use this specific format!).
+   * createdby NUMERIC(10) NOT NULL.
+   * updated timestamp without time zone NOT NULL DEFAULT now() (Use this specific format!).
+   * updatedby NUMERIC(10) NOT NULL.
+4. Data Columns: In addition to the standard columns, add the catalog columns:
+   * codigo VARCHAR(10) NOT NULL.
+   * valor VARCHAR(255) NOT NULL (Exception: use VARCHAR(512) for the 'icc_actividad_economica' table, as its values are longer).
+5. Constraints:
+   * Define {table_name}_id as PRIMARY KEY.
+   * Define ({table_name}_uu) as UNIQUE.
+   * Define (ad_client_id, codigo) as UNIQUE.
+REQUIREMENTS - FILE 2: 'scripts/icc_tables_data.sql'
+1. Generate a script with INSERT INTO statements to populate all tables created in the previous step.
+2. Data: Extract all 'Code' and 'Value' pairs from all catalogs in the PDF.
+3. Fixed Values (iDempiere): For the standard columns, use these fixed values in EVERY 'INSERT':
+   * ad_client_id: 1000000
+   * ad_org_id: 0
+   * createdby: 100
+   * updatedby: 100
+4. ID Generation: For the Primary Key column (e.g., icc_modalidad_credito_id), generate unique and sequential numeric IDs. The sequence must start at 1000000 and continue across all inserts for all catalogs.
+5. Data Handling: Ensure you correctly escape any single quotes (') that appear in the 'valor' data.
+DELIVERY FORMAT:
+Provide the contents of 'scripts/icc_tables_def.sql' and 'scripts/icc_tables_data.sql' in separate, ready-to-execute SQL code blocks.
