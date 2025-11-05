@@ -48,7 +48,7 @@ import groovy.transform.Field;
 @Field final int ALLOCATION_DOCTYPE_ID = 1000051; // Asignación de Cobros
 @Field final int INTERES_DOCTYPE_ID = 1000051; // Tipo de documento: Facturas de Interés
 @Field final int NOTA_DOCTYPE_ID = 1000048; // Tipo de documento: Factura Principal (Nota de Débito)
-@Field final int RECORD_LIMIT = 100; // Límite de pagos a procesar en cada ejecución. 0 para sin límite.
+@Field final int RECORD_LIMIT = 300; // Límite de pagos a procesar en cada ejecución. 0 para sin límite.
 
 // ==========================================================================
 //    CAMPOS Y CONTEXTO GLOBAL
@@ -84,6 +84,7 @@ List<MPayment> getUnallocatedPayments() {
             AND pay.PayAmt > 0
             AND pay.C_Invoice_ID IS NULL
             AND cal.C_Payment_ID IS NULL
+            AND EXISTS (select 1 from tmp_invoice_open io where io.c_bpartner_id = pay.c_bpartner_id and io.dateinvoiced <= pay.dateacct)
         ORDER BY pay.DateAcct ASC
     """;
 
