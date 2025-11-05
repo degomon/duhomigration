@@ -90,7 +90,7 @@ try {
         } else if (name.equals("fecha")) {
             fechaParam = para[i].getParameterAsTimestamp();
         } else {
-            log.log(Level.WARNING, "Parámetro desconocido: " + name);
+            log.log(Level.SEVERE, "Unknown Parameter: " + name);
         }
     }
 
