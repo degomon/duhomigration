@@ -4,11 +4,13 @@
  * Proceso para asignar automáticamente pagos de clientes (C_Payment) que no han sido asignados
  * a sus facturas pendientes (C_Invoice).
  *
- * Versión: 20250927
+ * Versión: 20251105
  *
  * Lógica de Negocio:
  * 1.  Busca pagos de clientes (recibos) que estén completados pero no asignados.
- * 2.  Para cada pago, busca las facturas más antiguas y pendientes del mismo socio de negocio.
+ * 2.  Para cada pago, busca las facturas pendientes del mismo socio de negocio con la siguiente prioridad:
+ *     a. Primero: Facturas de interés (C_DocType_ID=1000051) previas a la fecha del pago, de la más antigua a la más actual
+ *     b. Segundo: Factura principal (C_DocType_ID=1000048)
  * 3.  Crea una Asignación (Allocation) para vincular el pago con una o más facturas hasta
  *     que el monto del pago se consuma.
  * 4.  Procesa cada pago en una transacción separada para asegurar la integridad de los datos.
@@ -44,6 +46,8 @@ import groovy.transform.Field;
 //    CONFIGURACIÓN
 // ==========================================================================
 @Field final int ALLOCATION_DOCTYPE_ID = 1000051; // Asignación de Cobros
+@Field final int INTERES_DOCTYPE_ID = 1000051; // Tipo de documento: Facturas de Interés
+@Field final int NOTA_DOCTYPE_ID = 1000048; // Tipo de documento: Factura Principal (Nota de Débito)
 @Field final int RECORD_LIMIT = 100; // Límite de pagos a procesar en cada ejecución. 0 para sin límite.
 
 // ==========================================================================
@@ -106,17 +110,30 @@ List<MPayment> getUnallocatedPayments() {
     return payments;
 }
 /**
- * Obtiene las facturas pendientes de un socio de negocio, ordenadas por la más antigua.
+ * Obtiene las facturas pendientes de un socio de negocio, ordenadas por prioridad:
+ * 1. Facturas de interés (previas a la fecha del pago) - de la más antigua a la más actual
+ * 2. Factura principal
  */
-List<MInvoice> getPendingInvoices(int C_BPartner_ID) {
-    String whereClause = "IsSOTrx='Y' AND IsPaid='N' AND DocStatus='CO' AND C_BPartner_ID=?";
+List<MInvoice> getPendingInvoices(int C_BPartner_ID, Timestamp paymentDate) {
+    List<MInvoice> orderedInvoices = new ArrayList<MInvoice>();
     
-    List<MInvoice> invoices = new Query(g_Ctx, MInvoice.Table_Name, whereClause, g_TrxName)
-        .setParameters(C_BPartner_ID)
+    // 1. Obtener facturas de interés anteriores a la fecha del pago, ordenadas de la más antigua a la más actual
+    String whereClauseInterest = "IsSOTrx='Y' AND IsPaid='N' AND DocStatus='CO' AND C_BPartner_ID=? AND C_DocType_ID=? AND DateInvoiced<?";
+    List<MInvoice> interestInvoices = new Query(g_Ctx, MInvoice.Table_Name, whereClauseInterest, g_TrxName)
+        .setParameters(C_BPartner_ID, INTERES_DOCTYPE_ID, paymentDate)
         .setOrderBy(MInvoice.COLUMNNAME_DateInvoiced + " ASC")
         .list();
-        
-    return invoices;
+    orderedInvoices.addAll(interestInvoices);
+    
+    // 2. Obtener factura principal (nota de débito)
+    String whereClausePrincipal = "IsSOTrx='Y' AND IsPaid='N' AND DocStatus='CO' AND C_BPartner_ID=? AND C_DocType_ID=?";
+    List<MInvoice> principalInvoices = new Query(g_Ctx, MInvoice.Table_Name, whereClausePrincipal, g_TrxName)
+        .setParameters(C_BPartner_ID, NOTA_DOCTYPE_ID)
+        .setOrderBy(MInvoice.COLUMNNAME_DateInvoiced + " ASC")
+        .list();
+    orderedInvoices.addAll(principalInvoices);
+    
+    return orderedInvoices;
 }
 
 /**
@@ -125,7 +142,7 @@ List<MInvoice> getPendingInvoices(int C_BPartner_ID) {
 boolean processSinglePayment(MPayment payment, int workNumber) {
     logProcess("⚙️ [${workNumber}] Procesando Pago ${payment.getDocumentNo()} de ${payment.getC_BPartner().getName()} por ${payment.getPayAmt()}...");
 
-    List<MInvoice> invoices = getPendingInvoices(payment.getC_BPartner_ID());
+    List<MInvoice> invoices = getPendingInvoices(payment.getC_BPartner_ID(), payment.getDateAcct());
 
     if (invoices.isEmpty()) {
         logProcess("⏭️ Se omite Pago ${payment.getDocumentNo()}: No se encontraron facturas pendientes para este Socio de Negocio.");
