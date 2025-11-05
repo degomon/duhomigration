@@ -185,7 +185,8 @@ boolean processSinglePayment(MPayment payment, int workNumber) {
         allocLine.saveEx();
 
         amountToAllocate = amountToAllocate.subtract(allocatedAmt);
-        logProcess("    -> Asignando ${allocatedAmt} a Factura ${invoice.getDocumentNo()}. Saldo restante del pago: ${amountToAllocate}");
+        String invoiceType = (invoice.getC_DocType_ID() == INTERES_DOCTYPE_ID) ? "Factura de Interés" : "Factura Principal";
+        logProcess("    -> Asignando ${allocatedAmt} a ${invoiceType} ${invoice.getDocumentNo()}. Saldo restante del pago: ${amountToAllocate}");
     }
 
     if (!allocHdr.processIt(DocAction.ACTION_Complete)) {
