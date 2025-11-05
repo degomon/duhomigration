@@ -148,9 +148,11 @@ boolean processSinglePayment(MPayment payment, int workNumber) {
 
     if (invoices.isEmpty()) {
         logProcess("⏭️ Se omite Pago ${payment.getDocumentNo()}: No se encontraron facturas pendientes para este Socio de Negocio.");
-        // Opcional: Marcar el pago de alguna forma para no volver a consultarlo.
-        // payment.setDescription(payment.getDescription() + " | Sin facturas pendientes en " + g_Today)
-        // payment.saveEx();
+        // Insertar el pago en la tabla tmp_payment_omitidos para evitar reprocesarlo hoy
+        String insertSql = "INSERT INTO tmp_payment_omitidos (c_bpartner_id, c_payment_id, dateommited) VALUES (?, ?, now())";
+        Object[] params = [payment.getC_BPartner_ID(), payment.get_ID()];
+        DB.executeUpdate(insertSql, params, false, g_TrxName);
+        logProcess("    -> Pago registrado en tmp_payment_omitidos.");
         return false;
     }
 
