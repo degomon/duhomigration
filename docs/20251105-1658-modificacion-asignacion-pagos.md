@@ -109,6 +109,19 @@ El pago se asigna primero a intereses vencidos antes de la fecha del pago, luego
 - Mantiene la transaccionalidad del proceso original
 - Compatible con la estructura existente de datos
 
+### Nota sobre ALLOCATION_DOCTYPE_ID
+Existe una coincidencia pre-existente en el código donde:
+- `ALLOCATION_DOCTYPE_ID = 1000051` (usado para documentos de asignación/allocation)
+- `INTERES_DOCTYPE_ID = 1000051` (usado para facturas de interés)
+
+Ambos usan el mismo ID 1000051. Esto es una condición pre-existente que no fue modificada en este cambio, ya que:
+1. El sistema ya estaba funcionando con esta configuración
+2. Los contextos de uso son diferentes (allocations vs invoices)
+3. El alcance de este cambio es minimal y enfocado en la lógica de priorización de facturas
+4. No hay evidencia de que esto esté causando problemas
+
+Si en el futuro se requiere separar estos IDs, se debería hacer una revisión completa del sistema de tipos de documento.
+
 ## Referencias
 
 - Archivo modificado: `/rules/asignacion-rules/asignacion-automatica.groovy`
