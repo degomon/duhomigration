@@ -14,6 +14,7 @@ import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.adempiere.exceptions.AdempiereException;
 import org.adempiere.model.GenericPO;
+import org.compiere.process.ProcessInfoParameter;
 import groovy.transform.Field;
 
 import java.math.BigDecimal;
@@ -77,18 +78,39 @@ List<Integer> getPendingScheduleIDs(Timestamp processDate) {
 try {
     logProcess("✅ Iniciando proceso diario de generación de intereses...");
 
-    String sqlGetDate = "";
-    if (DB.isOracle()) {
-        sqlGetDate = "SELECT TRUNC(SysDate) FROM DUAL";
-    } else if (DB.isPostgreSQL()) {
-        sqlGetDate = "SELECT now()::date";
-    } else {
-        sqlGetDate = "SELECT CURRENT_DATE";
+    // ==========================================================================
+    //    MANEJO DE PARÁMETROS
+    // ==========================================================================
+    Timestamp fechaParam = null;
+    ProcessInfoParameter[] para = A_Parameter;
+    for (int i = 0; i < para.length; i++) {
+        String name = para[i].getParameterName();
+        if (para[i].getParameter() == null) {
+            // Parámetro vacío, se ignora
+        } else if (name.equals("fecha")) {
+            fechaParam = para[i].getParameterAsTimestamp();
+        } else {
+            log.log(Level.SEVERE, "Unknown Parameter: " + name);
+        }
     }
-    Timestamp today = DB.getSQLValueTSEx(A_TrxName, sqlGetDate);
 
+    // Determinar la fecha de procesamiento
+    Timestamp today = fechaParam;
     if (today == null) {
-        throw new AdempiereException("No se pudo obtener la fecha de la base de datos.");
+        // Si no se proporcionó el parámetro fecha, usar la fecha actual
+        String sqlGetDate = "";
+        if (DB.isOracle()) {
+            sqlGetDate = "SELECT TRUNC(SysDate) FROM DUAL";
+        } else if (DB.isPostgreSQL()) {
+            sqlGetDate = "SELECT now()::date";
+        } else {
+            sqlGetDate = "SELECT CURRENT_DATE";
+        }
+        today = DB.getSQLValueTSEx(A_TrxName, sqlGetDate);
+
+        if (today == null) {
+            throw new AdempiereException("No se pudo obtener la fecha de la base de datos.");
+        }
     }
 
     logProcess("🗓️ Fecha de procesamiento: " + today.toString().substring(0, 10));
