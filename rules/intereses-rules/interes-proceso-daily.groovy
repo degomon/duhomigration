@@ -1,8 +1,9 @@
 /**
  * InteresProcesoDaily
  * Proceso para generar facturas de interés basadas en el plan de pagos (legacy_schedule).
+ * 20251106 - agregado recálculo de cuotas basado en saldo capital antes de generar facturas
  * 20250928 - agregamos ref_invoice_id a legacy_schedule para referencia futura
- * Versión: 20250705 (Corregido)
+ * Versión: 20251106
  */
 
 import org.compiere.model.Query;
@@ -40,10 +41,159 @@ import java.sql.ResultSet;
 @Field CLogger log = CLogger.getCLogger(GenericPO.class);
 @Field int processedCount = 0;
 @Field int skippedCount = 0;
+@Field int recalculatedCount = 0;
 
 def logProcess(String message) {
     A_ProcessInfo.addLog(0, null, null, message);
     log.info(message);
+}
+
+/**
+ * Obtiene el saldo capital de una cartera a una fecha específica
+ * utilizando la función invoiceopentodate de la base de datos.
+ * 
+ * @param capitalInvoiceID ID de la factura de capital (legacy_cartera.local_id)
+ * @param processDate Fecha a la que se calcula el saldo
+ * @return Saldo capital pendiente a la fecha indicada
+ */
+BigDecimal getSaldoCapital(int capitalInvoiceID, Timestamp processDate) {
+    if (capitalInvoiceID <= 0) {
+        return BigDecimal.ZERO;
+    }
+    
+    String sql = "SELECT invoiceopentodate(?, NULL, ?)";
+    BigDecimal saldo = DB.getSQLValueBD(A_TrxName, sql, capitalInvoiceID, processDate);
+    
+    if (saldo == null) {
+        saldo = BigDecimal.ZERO;
+    }
+    
+    return saldo;
+}
+
+/**
+ * Recalcula las cuotas pendientes de una cartera basándose en el saldo capital actual.
+ * Similar al método crearCuotasPagoFlat pero calculando desde el saldo capital remanente.
+ * 
+ * @param carteraID ID de la cartera (legacy_cartera_id)
+ * @param saldoCapital Saldo de capital pendiente a la fecha del proceso
+ * @param processDate Fecha del proceso
+ * @return true si se recalculó exitosamente, false en caso contrario
+ */
+boolean recalcularCuotasDesdeCapital(int carteraID, BigDecimal saldoCapital, Timestamp processDate) {
+    try {
+        // Obtener información de la cartera
+        GenericPO cartera = new Query(A_Ctx, "legacy_cartera", "legacy_cartera_id = ?", A_TrxName)
+            .setParameters(carteraID)
+            .first();
+        
+        if (cartera == null) {
+            logProcess("⚠️ ADVERTENCIA: No se encontró la cartera con ID ${carteraID}.");
+            return false;
+        }
+        
+        // Obtener la tasa mensual y calcular tasa diaria
+        BigDecimal tasaMensual = cartera.get_Value('tasa') ?: BigDecimal.ZERO;
+        BigDecimal tasaDiaria = tasaMensual.divide(BigDecimal.valueOf(30), 10, java.math.RoundingMode.HALF_UP);
+        
+        // Obtener cuotas pendientes de esta cartera ordenadas por fecha de vencimiento
+        String sqlPendientes = """
+            SELECT legacy_schedule_id, DueDate, DueAmt 
+            FROM legacy_schedule 
+            WHERE legacy_cartera_id = ? 
+              AND (Processed IS NULL OR Processed = 'N') 
+              AND IsActive = 'Y'
+              AND DueDate >= ?
+            ORDER BY DueDate ASC
+        """;
+        
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        List<Map<String, Object>> cuotasPendientes = new ArrayList<>();
+        
+        try {
+            pstmt = DB.prepareStatement(sqlPendientes, A_TrxName);
+            pstmt.setInt(1, carteraID);
+            pstmt.setTimestamp(2, processDate);
+            rs = pstmt.executeQuery();
+            
+            while (rs.next()) {
+                Map<String, Object> cuota = new HashMap<>();
+                cuota.put("id", rs.getInt("legacy_schedule_id"));
+                cuota.put("dueDate", rs.getTimestamp("DueDate"));
+                cuota.put("dueAmt", rs.getBigDecimal("DueAmt"));
+                cuotasPendientes.add(cuota);
+            }
+        } finally {
+            DB.close(rs, pstmt);
+        }
+        
+        if (cuotasPendientes.isEmpty()) {
+            logProcess("ℹ️ No hay cuotas pendientes para recalcular en cartera ID ${carteraID}.");
+            return true;
+        }
+        
+        int numCuotas = cuotasPendientes.size();
+        
+        // Calcular monto total de cuotas pendientes (capital + interés estimado)
+        // El interés total estimado se calcula sobre el saldo capital promedio
+        BigDecimal interesEstimado = saldoCapital.multiply(tasaDiaria).multiply(BigDecimal.valueOf(numCuotas));
+        BigDecimal montoTotalEstimado = saldoCapital.add(interesEstimado);
+        
+        // Calcular cuota fija
+        BigDecimal cuotaTotal = montoTotalEstimado.divide(BigDecimal.valueOf(numCuotas), 4, java.math.RoundingMode.HALF_UP);
+        BigDecimal saldoPendiente = saldoCapital;
+        
+        logProcess("♻️ Recalculando ${numCuotas} cuotas para cartera ID ${carteraID}. Saldo capital: ${saldoCapital}, Tasa diaria: ${tasaDiaria}");
+        
+        // Recalcular cada cuota
+        for (Map<String, Object> cuotaData : cuotasPendientes) {
+            int scheduleID = (int) cuotaData.get("id");
+            
+            // Calcular interés del día basado en saldo pendiente
+            BigDecimal interesDelDia = saldoPendiente.multiply(tasaDiaria);
+            interesDelDia = interesDelDia.setScale(4, java.math.RoundingMode.HALF_UP);
+            
+            // Asegurar que el interés no sea negativo
+            if (interesDelDia.compareTo(BigDecimal.ZERO) < 0) {
+                interesDelDia = BigDecimal.ZERO;
+            }
+            
+            // Capital pagado en esta cuota
+            BigDecimal capitalDelDia = cuotaTotal.subtract(interesDelDia);
+            
+            // Validar que el capital no sea negativo
+            if (capitalDelDia.compareTo(BigDecimal.ZERO) < 0) {
+                // Si el interés excede la cuota total, ajustar
+                interesDelDia = cuotaTotal;
+                capitalDelDia = BigDecimal.ZERO;
+            }
+            
+            // Si el capital a pagar excede el saldo pendiente, ajustar para última cuota
+            if (capitalDelDia.compareTo(saldoPendiente) > 0) {
+                capitalDelDia = saldoPendiente;
+            }
+            
+            // Actualizar saldo pendiente
+            saldoPendiente = saldoPendiente.subtract(capitalDelDia);
+            if (saldoPendiente.compareTo(BigDecimal.ZERO) < 0) {
+                saldoPendiente = BigDecimal.ZERO;
+            }
+            
+            // Actualizar la cuota en la base de datos
+            String updateSQL = "UPDATE legacy_schedule SET DueAmt = ? WHERE legacy_schedule_id = ?";
+            DB.executeUpdate(updateSQL, new Object[]{interesDelDia, scheduleID}, false, A_TrxName);
+        }
+        
+        logProcess("✅ Recalculadas ${numCuotas} cuotas para cartera ID ${carteraID}.");
+        recalculatedCount++;
+        return true;
+        
+    } catch (Exception e) {
+        log.log(Level.SEVERE, "Error recalculando cuotas para cartera ID ${carteraID}.", e);
+        logProcess("❌ ERROR recalculando cuotas para cartera ID ${carteraID}: " + e.getMessage());
+        return false;
+    }
 }
 
 List<Integer> getPendingScheduleIDs(Timestamp processDate) {
@@ -124,6 +274,78 @@ try {
     }
 
     logProcess("🔍 Se encontraron ${scheduleIDs.size()} cuotas para procesar.");
+    
+    // ==========================================================================
+    //    PASO 1: RECALCULAR CUOTAS BASADAS EN SALDO CAPITAL
+    // ==========================================================================
+    logProcess("📊 Iniciando recálculo de cuotas basado en saldo capital...");
+    
+    // Obtener carteras únicas que tienen cuotas pendientes hoy
+    Set<Integer> carterasARecalcular = new HashSet<>();
+    for (int scheduleID in scheduleIDs) {
+        GenericPO schedule = new Query(A_Ctx, "legacy_schedule", "legacy_schedule_id = ?", A_TrxName)
+            .setParameters(scheduleID)
+            .first();
+        
+        if (schedule != null) {
+            int carteraID = schedule.get_ValueAsInt("legacy_cartera_id");
+            if (carteraID > 0) {
+                carterasARecalcular.add(carteraID);
+            }
+        }
+    }
+    
+    logProcess("📋 Se encontraron ${carterasARecalcular.size()} carteras únicas para recalcular.");
+    
+    // Recalcular cada cartera
+    for (int carteraID : carterasARecalcular) {
+        // Obtener la factura de capital desde legacy_cartera.local_id
+        GenericPO cartera = new Query(A_Ctx, "legacy_cartera", "legacy_cartera_id = ?", A_TrxName)
+            .setParameters(carteraID)
+            .first();
+        
+        if (cartera == null) {
+            logProcess("⏭️ Se omite cartera ID ${carteraID}: no se pudo cargar.");
+            continue;
+        }
+        
+        int capitalInvoiceID = cartera.get_ValueAsInt("local_id");
+        
+        if (capitalInvoiceID <= 0) {
+            logProcess("⚠️ ADVERTENCIA: Cartera ID ${carteraID} no tiene factura de capital (local_id no válido).");
+            continue;
+        }
+        
+        // Calcular saldo capital usando invoiceopentodate
+        BigDecimal saldoCapital = getSaldoCapital(capitalInvoiceID, today);
+        
+        logProcess("💰 Cartera ID ${carteraID}: Factura capital ID ${capitalInvoiceID}, Saldo: ${saldoCapital}");
+        
+        // Recalcular cuotas si hay saldo pendiente
+        if (saldoCapital.compareTo(BigDecimal.ZERO) > 0) {
+            recalcularCuotasDesdeCapital(carteraID, saldoCapital, today);
+        } else {
+            logProcess("ℹ️ Cartera ID ${carteraID} no tiene saldo capital pendiente. No se recalcula.");
+        }
+    }
+    
+    logProcess("✅ Recálculo completado. Carteras recalculadas: ${recalculatedCount}");
+    
+    // ==========================================================================
+    //    PASO 2: OBTENER CUOTAS PENDIENTES ACTUALIZADAS Y GENERAR FACTURAS
+    // ==========================================================================
+    logProcess("🔄 Obteniendo cuotas actualizadas para generar facturas...");
+    
+    // Volver a obtener las cuotas pendientes después del recálculo
+    scheduleIDs = getPendingScheduleIDs(today);
+    
+    if (scheduleIDs.isEmpty()) {
+        result = "Proceso finalizado. No se encontraron cuotas para procesar después del recálculo.";
+        logProcess(result);
+        return result;
+    }
+    
+    logProcess("🔍 Se encontraron ${scheduleIDs.size()} cuotas actualizadas para generar facturas.");
 
     for (int scheduleID in scheduleIDs) {
         GenericPO schedule = new Query(A_Ctx, "legacy_schedule", "legacy_schedule_id = ?", A_TrxName)
@@ -193,7 +415,7 @@ try {
         processedCount++;
     }
 
-    result = "Proceso finalizado. Facturas creadas: ${processedCount}, Omitidas: ${skippedCount}.";
+    result = "Proceso finalizado. Carteras recalculadas: ${recalculatedCount}, Facturas creadas: ${processedCount}, Omitidas: ${skippedCount}.";
 
 } catch (Exception e) {
     log.log(Level.SEVERE, "Error fatal durante la generación de facturas de interés.", e);
