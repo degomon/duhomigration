@@ -6,7 +6,17 @@
 
 ## Resumen del Cambio
 
-Se modificó el método `crearCuotasPagoFlat` para calcular el interés diario (`DueAmt`) basándose en el saldo pendiente de capital, en lugar de dividir el interés total equitativamente entre todas las cuotas.
+Se modificó el método `crearCuotasPagoFlat` para calcular el interés diario (`DueAmt`) basándose en el saldo pendiente de capital, usando la **tasa mensual** almacenada en `legacy_cartera.tasa`.
+
+## Aclaración Importante sobre la Tasa
+
+**ACTUALIZACIÓN 2025-11-06**: La tasa almacenada en `legacy_cartera.tasa` es una **tasa mensual** en formato decimal:
+- `tasa = 0.15` significa **15% mensual** (no anual)
+- `tasa = 0.25` significa **25% mensual** (no anual)
+
+Según el archivo `docs/ejemplo-legacy-cartera.csv`, los valores típicos son:
+- 0.15 (15% mensual) - usado en 46 de 50 registros
+- 0.25 (25% mensual) - usado en 4 de 50 registros
 
 ## Problema Identificado
 
@@ -27,15 +37,18 @@ El interés se dividía equitativamente: `cuotaInteres = interesTotal / numCuota
 ### Nueva Implementación
 
 ```groovy
-BigDecimal tasa = cartera.get_Value('tasa') ?: BigDecimal.ZERO
-BigDecimal monto = cartera.get_Value('monto')
-BigDecimal tasaDiaria = tasa.divide(BigDecimal.valueOf(360), 10, RoundingMode.HALF_UP)
+BigDecimal tasaMensual = cartera.get_Value('tasa') ?: BigDecimal.ZERO
+BigDecimal monto = cartera.get_Value('monto') ?: BigDecimal.ZERO
+// La tasa almacenada es mensual (ej: 0.15 = 15% mensual)
+// Para obtener tasa diaria: tasa mensual / 30
+BigDecimal tasaDiaria = tasaMensual.divide(BigDecimal.valueOf(30), 10, RoundingMode.HALF_UP)
 BigDecimal cuotaTotal = montoTotal.divide(BigDecimal.valueOf(numCuotas), 4, RoundingMode.HALF_UP)
 BigDecimal saldoPendiente = monto
 
 for (int i = 0; i < numCuotas; i++) {
     // Calcular interés del día basado en saldo pendiente
-    BigDecimal interesDelDia = saldoPendiente.multiply(tasaDiaria).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP)
+    BigDecimal interesDelDia = saldoPendiente.multiply(tasaDiaria)
+    interesDelDia = interesDelDia.setScale(4, RoundingMode.HALF_UP)
     
     // Capital pagado en esta cuota
     BigDecimal capitalDelDia = cuotaTotal.subtract(interesDelDia)
@@ -49,34 +62,56 @@ for (int i = 0; i < numCuotas; i++) {
 
 ## Fórmula Aplicada
 
-Basada en la hoja "Plan de pago interes diario" del archivo `docs/Formulas-de-Plan-de-pago.xlsx`:
-
-**Interés diario = Saldo pendiente × (Tasa anual / 360) / 100 × Días**
+**Interés diario = Saldo pendiente × (Tasa mensual / 30)**
 
 Donde:
 - **Saldo pendiente**: Capital que aún se debe al inicio del período
-- **Tasa anual**: Tasa de interés anual almacenada en `legacy_cartera.tasa` (ej: 180 para 180%)
-- **Tasa diaria**: `Tasa anual / 360`
-- **Días**: 1 (para pagos diarios)
+- **Tasa mensual**: Tasa de interés mensual almacenada en `legacy_cartera.tasa` (ej: 0.15 para 15%)
+- **Tasa diaria**: `Tasa mensual / 30`
 
 ## Ejemplo de Cálculo
 
-Para un préstamo de C$ 10,000 a 180% anual por 6 días:
+Para un préstamo de C$ 6,000 al 15% mensual por 30 días:
 
 | Día | Saldo Inicial | Interés Diario | Capital Pagado | Cuota Total | Saldo Final |
 |-----|---------------|----------------|----------------|-------------|-------------|
-| 1   | 10,000.00     | 50.0000        | 1,666.67       | 1,716.67    | 8,333.33    |
-| 2   | 8,333.33      | 41.6667        | 1,675.00       | 1,716.67    | 6,658.33    |
-| 3   | 6,658.33      | 33.2917        | 1,683.38       | 1,716.67    | 4,974.95    |
-| 4   | 4,974.95      | 24.8747        | 1,691.80       | 1,716.67    | 3,283.15    |
-| 5   | 3,283.15      | 16.4158        | 1,700.25       | 1,716.67    | 1,582.90    |
-| 6   | 1,582.90      | 7.9145         | 1,708.76       | 1,716.67    | (125.86)    |
+| 1   | 6,000.00      | 30.0000        | 200.00         | 230.00      | 5,800.00    |
+| 2   | 5,800.00      | 29.0000        | 201.00         | 230.00      | 5,599.00    |
+| 3   | 5,599.00      | 27.9950        | 202.00         | 230.00      | 5,397.00    |
+| 4   | 5,397.00      | 26.9850        | 203.02         | 230.00      | 5,193.98    |
+| 5   | 5,193.98      | 25.9699        | 204.03         | 230.00      | 4,989.95    |
+
+**Cálculo de la tasa diaria:**
+- Tasa mensual: 0.15 (15%)
+- Tasa diaria: 0.15 / 30 = 0.005 (0.5% diario)
+
+**Primer pago:**
+- Interés = 6,000 × 0.005 = 30.00
+- Capital = 230.00 - 30.00 = 200.00
+- Nuevo saldo = 6,000 - 200 = 5,800.00
 
 **Observación**: El interés disminuye con cada pago porque se calcula sobre un saldo cada vez menor.
 
+## Nota sobre el Interés Total
+
+El campo `valorinteres` en `legacy_cartera` representa el interés calculado como una tasa flat sobre el monto original:
+```
+valorinteres = monto × tasa
+```
+
+Sin embargo, el **interés real acumulado** en el plan de pagos será diferente (menor) porque:
+1. Se calcula sobre el saldo decreciente
+2. Se amortiza capital con cada pago
+
+Por ejemplo, para C$ 6,000 al 15% mensual por 30 días:
+- Interés flat (valorinteres): 900.00
+- Interés acumulado real: ~444.00 (con amortización diaria)
+
+Esto es correcto y refleja el funcionamiento real de un préstamo con pagos diarios donde el saldo disminuye.
+
 ## Validación
 
-Los cálculos fueron validados contra los valores en el archivo Excel `docs/Formulas-de-Plan-de-pago.xlsx`, hoja "Plan de pago interes diario", y coinciden exactamente.
+Los cálculos han sido validados contra datos reales del archivo `docs/ejemplo-legacy-cartera.csv` que contiene 50 registros de `legacy_cartera` con tasas mensuales de 0.15 y 0.25.
 
 ## Impacto
 
@@ -84,13 +119,14 @@ Los cálculos fueron validados contra los valores en el archivo Excel `docs/Form
 - `legacy_schedule.DueAmt`: Ahora contiene el interés calculado diariamente sobre saldo pendiente
 
 ### Datos Utilizados
-- `legacy_cartera.tasa`: Tasa de interés anual (requerido)
+- `legacy_cartera.tasa`: Tasa de interés mensual en formato decimal (requerido)
 - `legacy_cartera.monto`: Capital del préstamo
 - `legacy_cartera.montototal`: Monto total a pagar (capital + interés)
 - `legacy_cartera.dias_cre`: Número de cuotas/días
 
 ### Comportamiento con Datos Faltantes
 - Si `tasa` es `null`, se usa `BigDecimal.ZERO` como valor por defecto (interés = 0)
+- Si `monto` es `null`, se usa `BigDecimal.ZERO` como valor por defecto
 
 ## Notas Técnicas
 
@@ -98,9 +134,10 @@ Los cálculos fueron validados contra los valores en el archivo Excel `docs/Form
 2. **Redondeo**: Se aplica `RoundingMode.HALF_UP` en todas las divisiones
 3. **Cuota Total Fija**: La cuota total permanece constante, pero la distribución entre interés y capital varía
 4. **Saldo Pendiente**: Se actualiza después de cada cuota restando el capital pagado
+5. **Tasa Mensual**: La tasa se divide entre 30 (no 360) para obtener la tasa diaria
 
 ## Referencias
 
+- Archivo de datos: `docs/ejemplo-legacy-cartera.csv`
 - Archivo Excel: `docs/Formulas-de-Plan-de-pago.xlsx`
 - Hoja de referencia: "Plan de pago interes diario"
-- Fórmula de interés (Columna J): `=+L37*$C$7*H38` (Saldo anterior × Tasa diaria × Días)

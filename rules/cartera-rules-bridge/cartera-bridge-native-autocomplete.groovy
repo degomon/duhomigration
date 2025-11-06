@@ -59,11 +59,13 @@ def esDomingo = { Date fecha ->
 def crearCuotasPagoFlat = { ProcessInfo pi, MInvoice invoice, GenericPO cartera, int numCuotas, BigDecimal montoTotal ->
     String trxName = invoice.get_TrxName()
     int carteraID = cartera.get_ValueAsInt('legacy_cartera_ID')
-    BigDecimal tasa = cartera.get_Value('tasa') ?: BigDecimal.ZERO
+    BigDecimal tasaMensual = cartera.get_Value('tasa') ?: BigDecimal.ZERO
     BigDecimal monto = cartera.get_Value('monto') ?: BigDecimal.ZERO
-    BigDecimal tasaDiaria = tasa.divide(BigDecimal.valueOf(360), 10, RoundingMode.HALF_UP)
+    // La tasa almacenada es mensual (ej: 0.15 = 15% mensual)
+    // Para obtener tasa diaria: tasa mensual / 30
+    BigDecimal tasaDiaria = tasaMensual.divide(BigDecimal.valueOf(30), 10, RoundingMode.HALF_UP)
     
-    pi.addLog(0, null, null, "    -> Creando schedule para Invoice ${invoice.getDocumentNo()}, Cuotas: ${numCuotas}, Tasa: ${tasa}%, Tasa Diaria: ${tasaDiaria}% Org de Cartera: ${cartera.getAD_Org_ID()} ")
+    pi.addLog(0, null, null, "    -> Creando schedule para Invoice ${invoice.getDocumentNo()}, Cuotas: ${numCuotas}, Tasa Mensual: ${tasaMensual}, Tasa Diaria: ${tasaDiaria} Org de Cartera: ${cartera.getAD_Org_ID()} ")
 
     DB.executeUpdate('DELETE FROM legacy_schedule WHERE legacy_cartera_ID = ?', [carteraID] as Object[], true, trxName)
 
@@ -80,9 +82,13 @@ def crearCuotasPagoFlat = { ProcessInfo pi, MInvoice invoice, GenericPO cartera,
         }
 
         // Calcular interés diario basado en saldo pendiente
-        // Fórmula: Interes = Saldo × (Tasa / 360) / 100 × Días
+        // Fórmula: Interes = Saldo × Tasa diaria × Días
+        // donde Tasa diaria = Tasa mensual / 30
         // Días = 1 (pago diario)
-        BigDecimal interesDelDia = saldoPendiente.multiply(tasaDiaria).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP)
+        BigDecimal interesDelDia = saldoPendiente.multiply(tasaDiaria)
+        
+        // Redondear a 4 decimales
+        interesDelDia = interesDelDia.setScale(4, RoundingMode.HALF_UP)
         
         // Capital pagado en esta cuota
         BigDecimal capitalDelDia = cuotaTotal.subtract(interesDelDia)
