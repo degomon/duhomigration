@@ -37,6 +37,7 @@ import java.math.RoundingMode;
 import java.util.logging.Level;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import groovy.time.TimeCategory;
@@ -159,7 +160,7 @@ boolean processSinglePayment(MPayment payment, int workNumber) {
             pstmt.setInt(2, payment.get_ID());
             int result = pstmt.executeUpdate();
             logProcess("    -> Pago registrado en tmp_payment_omitidos (${result} rows affected).");
-        } catch (Exception e) {
+        } catch (SQLException e) {
             log.log(Level.WARNING, "Error al insertar en tmp_payment_omitidos para pago ID ${payment.get_ID()}", e);
             logProcess("    -> Advertencia: No se pudo registrar el pago en tmp_payment_omitidos: " + e.getMessage());
         } finally {
