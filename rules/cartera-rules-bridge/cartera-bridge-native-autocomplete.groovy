@@ -106,13 +106,10 @@ def crearCuotasPagoFlat = { ProcessInfo pi, MInvoice invoice, GenericPO cartera,
         }
         
         // Si el capital a pagar excede el saldo pendiente, ajustar para última cuota
+        // Importante: NO recalcular el interés, solo ajustar el capital
         if (capitalDelDia.compareTo(saldoPendiente) > 0) {
             capitalDelDia = saldoPendiente
-            interesDelDia = cuotaTotal.subtract(capitalDelDia)
-            // Si el interés ajustado es negativo, solo pagar el saldo
-            if (interesDelDia.compareTo(BigDecimal.ZERO) < 0) {
-                interesDelDia = BigDecimal.ZERO
-            }
+            // El interés ya está correctamente calculado, no lo recalculamos
         }
         
         // Actualizar saldo pendiente (asegurar que no sea negativo)
