@@ -61,6 +61,10 @@ BigDecimal getSaldoCapital(int capitalInvoiceID, Timestamp processDate) {
         return BigDecimal.ZERO;
     }
     
+    if (processDate == null) {
+        throw new AdempiereException("processDate no puede ser null al calcular saldo capital.");
+    }
+    
     String sql = "SELECT invoiceopentodate(?, NULL, ?)";
     BigDecimal saldo = DB.getSQLValueBD(A_TrxName, sql, capitalInvoiceID, processDate);
     
@@ -136,7 +140,10 @@ boolean recalcularCuotasDesdeCapital(int carteraID, BigDecimal saldoCapital, Tim
         int numCuotas = cuotasPendientes.size();
         
         // Calcular monto total de cuotas pendientes (capital + interés estimado)
-        // El interés total estimado se calcula sobre el saldo capital promedio
+        // NOTA: Esta es una estimación simplificada para calcular la cuota fija.
+        // El interés real se calcula precisamente en el bucle sobre saldo decreciente.
+        // Estimación: interés ≈ saldoCapital × tasaDiaria × numCuotas
+        // Esta aproximación es suficiente porque el interés se ajusta en cada iteración.
         BigDecimal interesEstimado = saldoCapital.multiply(tasaDiaria).multiply(BigDecimal.valueOf(numCuotas));
         BigDecimal montoTotalEstimado = saldoCapital.add(interesEstimado);
         
