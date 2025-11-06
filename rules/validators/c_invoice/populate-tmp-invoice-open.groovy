@@ -22,10 +22,9 @@
  * - invoiceopen(c_invoice_id, NULL::numeric): Returns the open amount for the invoice
  * 
  * Context Variables (iDempiere Script Model Validator):
- * - A_Ctx or ctx: Properties context
- * - A_TrxName or trxName: Transaction name
  * - po: The persistent object (MInvoice)
- * - type or TYPE: Event type constant
+ * - type: Event type constant (TYPE_AFTER_NEW = 4, TYPE_AFTER_CHANGE = 2)
+ * - Transaction name is retrieved from the persistent object: inv.get_TrxName()
  * 
  * Version: 20251106
  */
@@ -86,6 +85,7 @@ try {
     }
     
     // Get transaction name from the persistent object
+    // Using the object's transaction ensures we stay within the same transaction context
     String trxName = inv.get_TrxName()
     
     // Call invoiceopen function to get the current open amount

@@ -30,26 +30,26 @@ AND EXISTS (
 Los model validators en iDempiere son scripts Groovy que se ejecutan en respuesta a eventos específicos del ciclo de vida de un registro. En este caso:
 
 **Eventos Capturados:**
-- `TYPE_AFTER_NEW`: Después de crear una nueva factura
-- `TYPE_AFTER_CHANGE`: Después de modificar una factura existente
+- `TYPE_AFTER_NEW` (4): Después de crear una nueva factura
+- `TYPE_AFTER_CHANGE` (2): Después de modificar una factura existente
 
 **Variables Disponibles en el Contexto:**
-- `A_Ctx`: Contexto de iDempiere
-- `A_TrxName`: Nombre de la transacción actual
-- `A_Tab`: Pestaña desde la cual se ejecuta el evento
-- `TYPE`: Tipo de evento (AFTER_NEW, AFTER_CHANGE, etc.)
+- `po`: El objeto persistente (instancia de MInvoice)
+- `type`: Tipo de evento (TYPE_AFTER_NEW = 4, TYPE_AFTER_CHANGE = 2)
+- `trxName`: Se obtiene del objeto persistente mediante `inv.get_TrxName()`
 
 ### Lógica Implementada
 
 1. **Validación del Contexto:**
-   - Verifica que el script se ejecute en un contexto válido de model validator
+   - Verifica que el script se ejecute en un contexto válido de model validator (variable `po` presente)
    - Verifica que el evento sea `TYPE_AFTER_NEW` o `TYPE_AFTER_CHANGE`
 
 2. **Obtención de Datos:**
-   - Extrae el `C_Invoice_ID` del tab
-   - Carga el objeto `MInvoice` completo
+   - Obtiene el objeto `MInvoice` directamente desde la variable `po`
+   - Extrae el `C_Invoice_ID` mediante `inv.get_ID()`
    - Verifica que sea una factura de cliente (`IsSOTrx='Y'`)
-   - Obtiene `C_BPartner_ID` y `DateInvoiced`
+   - Obtiene `C_BPartner_ID` y `DateInvoiced` del objeto
+   - Obtiene el nombre de la transacción mediante `inv.get_TrxName()`
 
 3. **Cálculo del Saldo Abierto:**
    ```groovy
