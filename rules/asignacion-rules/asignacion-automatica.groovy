@@ -50,7 +50,7 @@ import groovy.transform.Field;
 @Field final int ALLOCATION_DOCTYPE_ID = 1000051; // Asignación de Cobros
 @Field final int INTERES_DOCTYPE_ID = 1000051; // Tipo de documento: Facturas de Interés
 @Field final int NOTA_DOCTYPE_ID = 1000048; // Tipo de documento: Factura Principal (Nota de Débito)
-@Field final int RECORD_LIMIT = 5000; // Límite de pagos a procesar en cada ejecución. 0 para sin límite.
+@Field final int RECORD_LIMIT = 380; // Límite de pagos a procesar en cada ejecución. 0 para sin límite.
 
 // ==========================================================================
 //    CAMPOS Y CONTEXTO GLOBAL
