@@ -8,8 +8,8 @@
  * and populates or updates the tmp_invoice_open table.
  * 
  * Trigger Events:
- * - TYPE_AFTER_NEW: After a new invoice is created
- * - TYPE_AFTER_CHANGE: After an existing invoice is updated
+ * - TYPE_AFTER_NEW (4): After a new invoice is created
+ * - TYPE_AFTER_CHANGE (2): After an existing invoice is updated
  * 
  * Table: tmp_invoice_open
  * Fields:
@@ -21,10 +21,17 @@
  * Database Function Used:
  * - invoiceopen(c_invoice_id, NULL::numeric): Returns the open amount for the invoice
  * 
+ * Context Variables (iDempiere Script Model Validator):
+ * - A_Ctx or ctx: Properties context
+ * - A_TrxName or trxName: Transaction name
+ * - po: The persistent object (MInvoice)
+ * - type or TYPE: Event type constant
+ * 
  * Version: 20251106
  */
 
 import org.compiere.model.MInvoice
+import org.compiere.model.ModelValidator
 import org.compiere.util.DB
 import org.compiere.util.CLogger
 import java.sql.PreparedStatement
@@ -36,43 +43,52 @@ import java.math.BigDecimal
 // Logger
 CLogger log = CLogger.getCLogger("ModelValidator.C_Invoice.PopulateTmpInvoiceOpen")
 
-// Validate that this is a model validator context
-if (A_Tab == null || A_TrxName == null) {
-    log.warning("Script not running in model validator context")
-    return "Error: Invalid context"
+// Handle different variable name conventions (A_TrxName vs trxName, etc.)
+def trxName = binding.hasVariable('A_TrxName') ? A_TrxName : (binding.hasVariable('trxName') ? trxName : null)
+def ctx = binding.hasVariable('A_Ctx') ? A_Ctx : (binding.hasVariable('ctx') ? ctx : null)
+def eventType = binding.hasVariable('TYPE') ? TYPE : (binding.hasVariable('type') ? type : -1)
+def invoice = binding.hasVariable('po') ? po : null
+
+// Validate context
+if (ctx == null || trxName == null) {
+    log.warning("Script not running in valid model validator context - missing ctx or trxName")
+    return ""
 }
 
 // Only process after save events
-String eventType = TYPE
-if (eventType != "TYPE_AFTER_NEW" && eventType != "TYPE_AFTER_CHANGE") {
+// TYPE_AFTER_NEW = 4, TYPE_AFTER_CHANGE = 2
+if (eventType != ModelValidator.TYPE_AFTER_NEW && eventType != ModelValidator.TYPE_AFTER_CHANGE) {
     // Not a relevant event, skip processing
     return ""
 }
 
 try {
-    // Get the invoice ID from the tab
-    Integer invoiceId = A_Tab.getValue("C_Invoice_ID") as Integer
+    // Get the invoice object
+    if (invoice == null || !(invoice instanceof MInvoice)) {
+        log.warning("Invalid or missing invoice object")
+        return ""
+    }
+    
+    MInvoice inv = (MInvoice) invoice
+    Integer invoiceId = inv.get_ID()
     
     if (invoiceId == null || invoiceId <= 0) {
         log.warning("Invalid C_Invoice_ID: ${invoiceId}")
-        return "Error: Invalid Invoice ID"
+        return ""
     }
     
-    // Load the invoice to get additional details
-    MInvoice invoice = new MInvoice(A_Ctx, invoiceId, A_TrxName)
-    
-    if (!invoice.isSOTrx()) {
+    if (!inv.isSOTrx()) {
         // Only process sales invoices (customer invoices)
         log.fine("Skipping purchase invoice ID ${invoiceId}")
         return ""
     }
     
-    Integer bpartnerId = invoice.getC_BPartner_ID()
-    java.sql.Timestamp dateInvoiced = invoice.getDateInvoiced()
+    Integer bpartnerId = inv.getC_BPartner_ID()
+    java.sql.Timestamp dateInvoiced = inv.getDateInvoiced()
     
     if (bpartnerId == null || bpartnerId <= 0) {
         log.warning("Invalid C_BPartner_ID for invoice ${invoiceId}")
-        return "Error: Invalid Business Partner ID"
+        return ""
     }
     
     // Call invoiceopen function to get the current open amount
@@ -82,7 +98,7 @@ try {
     ResultSet rs = null
     
     try {
-        pstmt = DB.prepareStatement(selectSql, A_TrxName)
+        pstmt = DB.prepareStatement(selectSql, trxName)
         pstmt.setInt(1, invoiceId)
         rs = pstmt.executeQuery()
         
@@ -91,7 +107,7 @@ try {
         }
     } catch (SQLException e) {
         log.log(Level.SEVERE, "Error calling invoiceopen function for invoice ${invoiceId}", e)
-        return "Error: Failed to calculate open amount"
+        return ""
     } finally {
         DB.close(rs, pstmt)
     }
@@ -116,7 +132,7 @@ try {
     PreparedStatement upsertStmt = null
     
     try {
-        upsertStmt = DB.prepareStatement(upsertSql, A_TrxName)
+        upsertStmt = DB.prepareStatement(upsertSql, trxName)
         upsertStmt.setInt(1, invoiceId)
         upsertStmt.setInt(2, bpartnerId)
         upsertStmt.setTimestamp(3, dateInvoiced)
@@ -128,7 +144,7 @@ try {
         
     } catch (SQLException e) {
         log.log(Level.SEVERE, "Error upserting to tmp_invoice_open for invoice ${invoiceId}", e)
-        return "Error: Failed to update tmp_invoice_open table: " + e.getMessage()
+        return ""
     } finally {
         DB.close(upsertStmt)
     }
@@ -138,5 +154,5 @@ try {
     
 } catch (Exception e) {
     log.log(Level.SEVERE, "Unexpected error in C_Invoice model validator", e)
-    return "Error: " + e.getMessage()
+    return ""
 }
