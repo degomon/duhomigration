@@ -90,6 +90,11 @@ def crearCuotasPagoFlat = { ProcessInfo pi, MInvoice invoice, GenericPO cartera,
         // Redondear a 4 decimales
         interesDelDia = interesDelDia.setScale(4, RoundingMode.HALF_UP)
         
+        // Asegurar que el interés no sea negativo (puede pasar si el saldo es negativo)
+        if (interesDelDia.compareTo(BigDecimal.ZERO) < 0) {
+            interesDelDia = BigDecimal.ZERO
+        }
+        
         // Capital pagado en esta cuota
         BigDecimal capitalDelDia = cuotaTotal.subtract(interesDelDia)
         
@@ -100,8 +105,21 @@ def crearCuotasPagoFlat = { ProcessInfo pi, MInvoice invoice, GenericPO cartera,
             capitalDelDia = BigDecimal.ZERO
         }
         
-        // Actualizar saldo pendiente
+        // Si el capital a pagar excede el saldo pendiente, ajustar para última cuota
+        if (capitalDelDia.compareTo(saldoPendiente) > 0) {
+            capitalDelDia = saldoPendiente
+            interesDelDia = cuotaTotal.subtract(capitalDelDia)
+            // Si el interés ajustado es negativo, solo pagar el saldo
+            if (interesDelDia.compareTo(BigDecimal.ZERO) < 0) {
+                interesDelDia = BigDecimal.ZERO
+            }
+        }
+        
+        // Actualizar saldo pendiente (asegurar que no sea negativo)
         saldoPendiente = saldoPendiente.subtract(capitalDelDia)
+        if (saldoPendiente.compareTo(BigDecimal.ZERO) < 0) {
+            saldoPendiente = BigDecimal.ZERO
+        }
 
         MTable scheduleTable = MTable.get(A_Ctx, 'legacy_schedule')
         PO cuota = scheduleTable.getPO(0, trxName)
