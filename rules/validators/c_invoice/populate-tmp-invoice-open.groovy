@@ -44,9 +44,9 @@ import java.math.BigDecimal
 CLogger log = CLogger.getCLogger("ModelValidator.C_Invoice.PopulateTmpInvoiceOpen")
 
 // Handle different variable name conventions (A_TrxName vs trxName, etc.)
-def trxName = binding.hasVariable('A_TrxName') ? A_TrxName : (binding.hasVariable('trxName') ? trxName : null)
-def ctx = binding.hasVariable('A_Ctx') ? A_Ctx : (binding.hasVariable('ctx') ? ctx : null)
-def eventType = binding.hasVariable('TYPE') ? TYPE : (binding.hasVariable('type') ? type : -1)
+def trxName = binding.hasVariable('A_TrxName') ? A_TrxName : (binding.hasVariable('trxName') ? binding.getVariable('trxName') : null)
+def ctx = binding.hasVariable('A_Ctx') ? A_Ctx : (binding.hasVariable('ctx') ? binding.getVariable('ctx') : null)
+def eventType = binding.hasVariable('TYPE') ? TYPE : (binding.hasVariable('type') ? binding.getVariable('type') : -1)
 def invoice = binding.hasVariable('po') ? po : null
 
 // Validate context
