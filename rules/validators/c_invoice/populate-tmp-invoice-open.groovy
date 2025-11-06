@@ -117,13 +117,13 @@ try {
     // Upsert into tmp_invoice_open table
     // Using PostgreSQL's ON CONFLICT clause for atomic upsert
     String upsertSql = """
-        INSERT INTO tmp_invoice_open (c_invoice_id, c_bpartner_id, dateinvoiced, openamt)
+        INSERT INTO tmp_invoice_open (c_invoice_id, c_bpartner_id, dateinvoiced, saldo)
         VALUES (?, ?, ?, ?)
         ON CONFLICT (c_invoice_id) 
         DO UPDATE SET 
             c_bpartner_id = EXCLUDED.c_bpartner_id,
             dateinvoiced = EXCLUDED.dateinvoiced,
-            openamt = EXCLUDED.openamt
+            saldo = EXCLUDED.saldo
     """
     
     PreparedStatement upsertStmt = null
