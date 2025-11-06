@@ -36,8 +36,7 @@ Los model validators en iDempiere son scripts Groovy que se ejecutan en respuest
 **Variables Disponibles en el Contexto:**
 - `A_PO`: El objeto persistente (instancia de MInvoice)
 - `A_Type`: Tipo de evento (TYPE_AFTER_NEW = 4, TYPE_AFTER_CHANGE = 2)
-- `A_Ctx`: Contexto de iDempiere (Properties)
-- `A_TrxName`: Nombre de la transacción (String)
+- `trxName`: Se obtiene del objeto persistente mediante `inv.get_TrxName()`
 
 ### Lógica Implementada
 
@@ -50,7 +49,7 @@ Los model validators en iDempiere son scripts Groovy que se ejecutan en respuest
    - Extrae el `C_Invoice_ID` mediante `inv.get_ID()`
    - Verifica que sea una factura de cliente (`IsSOTrx='Y'`)
    - Obtiene `C_BPartner_ID` y `DateInvoiced` del objeto
-   - Usa el nombre de la transacción desde `A_TrxName`
+   - Obtiene el nombre de la transacción mediante `inv.get_TrxName()`
 
 3. **Cálculo del Saldo Abierto:**
    ```groovy

@@ -24,8 +24,7 @@
  * Context Variables (iDempiere Script Model Validator):
  * - A_PO: The persistent object (MInvoice)
  * - A_Type: Event type constant (TYPE_AFTER_NEW = 4, TYPE_AFTER_CHANGE = 2)
- * - A_Ctx: Context (Properties)
- * - A_TrxName: Transaction name (String)
+ * - Transaction name is retrieved from the persistent object: inv.get_TrxName()
  * 
  * Version: 20251106
  */
@@ -85,8 +84,9 @@ try {
         return ""
     }
     
-    // Use the transaction name from context
-    String trxName = A_TrxName
+    // Get transaction name from the persistent object
+    // This is more reliable than using A_TrxName which may not always be available
+    String trxName = inv.get_TrxName()
     
     // Call invoiceopen function to get the current open amount
     BigDecimal openAmt = null
