@@ -60,7 +60,7 @@ def crearCuotasPagoFlat = { ProcessInfo pi, MInvoice invoice, GenericPO cartera,
     String trxName = invoice.get_TrxName()
     int carteraID = cartera.get_ValueAsInt('legacy_cartera_ID')
     BigDecimal tasa = cartera.get_Value('tasa') ?: BigDecimal.ZERO
-    BigDecimal monto = cartera.get_Value('monto')
+    BigDecimal monto = cartera.get_Value('monto') ?: BigDecimal.ZERO
     BigDecimal tasaDiaria = tasa.divide(BigDecimal.valueOf(360), 10, RoundingMode.HALF_UP)
     
     pi.addLog(0, null, null, "    -> Creando schedule para Invoice ${invoice.getDocumentNo()}, Cuotas: ${numCuotas}, Tasa: ${tasa}%, Tasa Diaria: ${tasaDiaria}% Org de Cartera: ${cartera.getAD_Org_ID()} ")
@@ -80,12 +80,19 @@ def crearCuotasPagoFlat = { ProcessInfo pi, MInvoice invoice, GenericPO cartera,
         }
 
         // Calcular interés diario basado en saldo pendiente
-        // Fórmula: Interes = Saldo × (Tasa / 360) × Días
+        // Fórmula: Interes = Saldo × (Tasa / 360) / 100 × Días
         // Días = 1 (pago diario)
         BigDecimal interesDelDia = saldoPendiente.multiply(tasaDiaria).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP)
         
         // Capital pagado en esta cuota
         BigDecimal capitalDelDia = cuotaTotal.subtract(interesDelDia)
+        
+        // Validar que el capital no sea negativo (puede ocurrir si el interés excede la cuota)
+        if (capitalDelDia.compareTo(BigDecimal.ZERO) < 0) {
+            // Si el interés excede la cuota total, ajustar: la cuota es solo interés
+            interesDelDia = cuotaTotal
+            capitalDelDia = BigDecimal.ZERO
+        }
         
         // Actualizar saldo pendiente
         saldoPendiente = saldoPendiente.subtract(capitalDelDia)
