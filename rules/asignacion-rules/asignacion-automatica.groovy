@@ -151,11 +151,12 @@ boolean processSinglePayment(MPayment payment, int workNumber) {
     if (invoices.isEmpty()) {
         logProcess("⏭️ Se omite Pago ${payment.getDocumentNo()}: No se encontraron facturas pendientes para este Socio de Negocio.");
         // Insertar el pago en la tabla tmp_payment_omitidos para evitar reprocesarlo hoy
-        // Usando PreparedStatement directamente para manejar mejor duplicados y transacciones
+        // Usando null como transaction name para que el INSERT se ejecute en auto-commit
+        // y persista independientemente de si la transacción principal se revierte
         String insertSql = "INSERT INTO tmp_payment_omitidos (c_bpartner_id, c_payment_id, dateommited) VALUES (?, ?, now()) ON CONFLICT (c_payment_id) DO NOTHING";
         PreparedStatement pstmt = null;
         try {
-            pstmt = DB.prepareStatement(insertSql, g_TrxName);
+            pstmt = DB.prepareStatement(insertSql, null);
             pstmt.setInt(1, payment.getC_BPartner_ID());
             pstmt.setInt(2, payment.get_ID());
             int result = pstmt.executeUpdate();
