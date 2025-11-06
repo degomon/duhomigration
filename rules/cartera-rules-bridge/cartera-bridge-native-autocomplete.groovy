@@ -58,19 +58,36 @@ def esDomingo = { Date fecha ->
 def crearCuotasPagoFlat = { ProcessInfo pi, MInvoice invoice, GenericPO cartera, int numCuotas, BigDecimal montoTotal ->
     String trxName = invoice.get_TrxName()
     int carteraID = cartera.get_ValueAsInt('legacy_cartera_ID')
-    BigDecimal interesTotal = cartera.get_Value('valorinteres')
-    BigDecimal cuotaInteres = interesTotal.divide(BigDecimal.valueOf(numCuotas), 4, RoundingMode.HALF_UP)
-    pi.addLog(0, null, null, "    -> Creando schedule para Invoice ${invoice.getDocumentNo()}, Cuotas: ${numCuotas}, Monto Cuota: ${cuotaInteres} Org de Cartera: ${cartera.getAD_Org_ID()} ")
+    BigDecimal tasa = cartera.get_Value('tasa') ?: BigDecimal.ZERO
+    BigDecimal monto = cartera.get_Value('monto')
+    BigDecimal tasaDiaria = tasa.divide(BigDecimal.valueOf(360), 10, RoundingMode.HALF_UP)
+    
+    pi.addLog(0, null, null, "    -> Creando schedule para Invoice ${invoice.getDocumentNo()}, Cuotas: ${numCuotas}, Tasa: ${tasa}%, Tasa Diaria: ${tasaDiaria}% Org de Cartera: ${cartera.getAD_Org_ID()} ")
 
     DB.executeUpdate('DELETE FROM legacy_schedule WHERE legacy_cartera_ID = ?', [carteraID] as Object[], true, trxName)
 
     Date fechaBase = cartera.get_Value('fecha')
     Date fechaCuota = TimeUtil.addDays(fechaBase, 1)
+    
+    // Calcular cuota total fija (capital + interés) para el plan
+    BigDecimal cuotaTotal = montoTotal.divide(BigDecimal.valueOf(numCuotas), 4, RoundingMode.HALF_UP)
+    BigDecimal saldoPendiente = monto
 
     for (int i = 0; i < numCuotas; i++) {
         if (esDomingo(fechaCuota)) {
             fechaCuota = TimeUtil.addDays(fechaCuota, 1)
         }
+
+        // Calcular interés diario basado en saldo pendiente
+        // Fórmula: Interes = Saldo × (Tasa / 360) × Días
+        // Días = 1 (pago diario)
+        BigDecimal interesDelDia = saldoPendiente.multiply(tasaDiaria).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP)
+        
+        // Capital pagado en esta cuota
+        BigDecimal capitalDelDia = cuotaTotal.subtract(interesDelDia)
+        
+        // Actualizar saldo pendiente
+        saldoPendiente = saldoPendiente.subtract(capitalDelDia)
 
         MTable scheduleTable = MTable.get(A_Ctx, 'legacy_schedule')
         PO cuota = scheduleTable.getPO(0, trxName)
@@ -80,7 +97,7 @@ def crearCuotasPagoFlat = { ProcessInfo pi, MInvoice invoice, GenericPO cartera,
     
         cuota.set_ValueOfColumn('C_Invoice_ID', invoice.getC_Invoice_ID())
         cuota.set_ValueOfColumn('legacy_cartera_ID', carteraID)
-        cuota.set_ValueOfColumn('DueAmt', cuotaInteres)
+        cuota.set_ValueOfColumn('DueAmt', interesDelDia)
         cuota.set_ValueOfColumn('DueDate', fechaCuota)
         cuota.set_ValueOfColumn('IsActive', 'Y')
         cuota.saveEx(trxName)
