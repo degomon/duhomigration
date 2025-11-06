@@ -43,37 +43,27 @@ import java.math.BigDecimal
 // Logger
 CLogger log = CLogger.getCLogger("ModelValidator.C_Invoice.PopulateTmpInvoiceOpen")
 
-// Handle different variable name conventions (A_TrxName vs trxName, etc.)
-// Try both naming conventions used in iDempiere scripts
-def trxName = binding.hasVariable('A_TrxName') ? binding.getVariable('A_TrxName') : 
-              (binding.hasVariable('trxName') ? binding.getVariable('trxName') : null)
-def ctx = binding.hasVariable('A_Ctx') ? binding.getVariable('A_Ctx') : 
-          (binding.hasVariable('ctx') ? binding.getVariable('ctx') : null)
-def eventType = binding.hasVariable('TYPE') ? binding.getVariable('TYPE') : 
-                (binding.hasVariable('type') ? binding.getVariable('type') : -1)
-def invoice = binding.hasVariable('po') ? binding.getVariable('po') : null
-
-// Validate context
-if (ctx == null || trxName == null) {
-    log.warning("Script not running in valid model validator context - missing ctx or trxName")
+// Validate context - model validator should provide these variables
+if (!binding.hasVariable('po') || po == null) {
+    log.warning("Script not running in model validator context - missing 'po' variable")
     return ""
 }
 
 // Only process after save events
 // TYPE_AFTER_NEW = 4, TYPE_AFTER_CHANGE = 2
-if (eventType != ModelValidator.TYPE_AFTER_NEW && eventType != ModelValidator.TYPE_AFTER_CHANGE) {
+if (type != ModelValidator.TYPE_AFTER_NEW && type != ModelValidator.TYPE_AFTER_CHANGE) {
     // Not a relevant event, skip processing
     return ""
 }
 
 try {
     // Get the invoice object
-    if (invoice == null || !(invoice instanceof MInvoice)) {
-        log.warning("Invalid or missing invoice object")
+    if (!(po instanceof MInvoice)) {
+        log.warning("Invalid invoice object type")
         return ""
     }
     
-    MInvoice inv = (MInvoice) invoice
+    MInvoice inv = (MInvoice) po
     Integer invoiceId = inv.get_ID()
     
     if (invoiceId == null || invoiceId <= 0) {
@@ -94,6 +84,9 @@ try {
         log.warning("Invalid C_BPartner_ID for invoice ${invoiceId}")
         return ""
     }
+    
+    // Get transaction name from the persistent object
+    String trxName = inv.get_TrxName()
     
     // Call invoiceopen function to get the current open amount
     BigDecimal openAmt = null
