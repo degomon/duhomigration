@@ -22,9 +22,10 @@
  * - invoiceopen(c_invoice_id, NULL::numeric): Returns the open amount for the invoice
  * 
  * Context Variables (iDempiere Script Model Validator):
- * - po: The persistent object (MInvoice)
- * - type: Event type constant (TYPE_AFTER_NEW = 4, TYPE_AFTER_CHANGE = 2)
- * - Transaction name is retrieved from the persistent object: inv.get_TrxName()
+ * - A_PO: The persistent object (MInvoice)
+ * - A_Type: Event type constant (TYPE_AFTER_NEW = 4, TYPE_AFTER_CHANGE = 2)
+ * - A_Ctx: Context (Properties)
+ * - A_TrxName: Transaction name (String)
  * 
  * Version: 20251106
  */
@@ -43,26 +44,26 @@ import java.math.BigDecimal
 CLogger log = CLogger.getCLogger("ModelValidator.C_Invoice.PopulateTmpInvoiceOpen")
 
 // Validate context - model validator should provide these variables
-if (!binding.hasVariable('po') || po == null) {
-    log.warning("Script not running in model validator context - missing 'po' variable")
+if (A_PO == null) {
+    log.warning("Script not running in model validator context - missing 'A_PO' variable")
     return ""
 }
 
 // Only process after save events
 // TYPE_AFTER_NEW = 4, TYPE_AFTER_CHANGE = 2
-if (type != ModelValidator.TYPE_AFTER_NEW && type != ModelValidator.TYPE_AFTER_CHANGE) {
+if (A_Type != ModelValidator.TYPE_AFTER_NEW && A_Type != ModelValidator.TYPE_AFTER_CHANGE) {
     // Not a relevant event, skip processing
     return ""
 }
 
 try {
     // Get the invoice object
-    if (!(po instanceof MInvoice)) {
+    if (!(A_PO instanceof MInvoice)) {
         log.warning("Invalid invoice object type")
         return ""
     }
     
-    MInvoice inv = (MInvoice) po
+    MInvoice inv = (MInvoice) A_PO
     Integer invoiceId = inv.get_ID()
     
     if (invoiceId == null || invoiceId <= 0) {
@@ -84,9 +85,8 @@ try {
         return ""
     }
     
-    // Get transaction name from the persistent object
-    // Using the object's transaction ensures we stay within the same transaction context
-    String trxName = inv.get_TrxName()
+    // Use the transaction name from context
+    String trxName = A_TrxName
     
     // Call invoiceopen function to get the current open amount
     BigDecimal openAmt = null
