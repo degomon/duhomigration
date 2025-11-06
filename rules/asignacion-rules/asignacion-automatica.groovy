@@ -4,7 +4,7 @@
  * Proceso para asignar automáticamente pagos de clientes (C_Payment) que no han sido asignados
  * a sus facturas pendientes (C_Invoice).
  *
- * Versión: 20251105
+ * Versión: 20251106
  *
  * Lógica de Negocio:
  * 1.  Busca pagos de clientes (recibos) que estén completados pero no asignados.
@@ -14,6 +14,7 @@
  * 3.  Crea una Asignación (Allocation) para vincular el pago con una o más facturas hasta
  *     que el monto del pago se consuma.
  * 4.  Procesa cada pago en una transacción separada para asegurar la integridad de los datos.
+ * 5.  Usa PreparedStatement para inserción segura en tmp_payment_omitidos con manejo de duplicados.
  */
 import org.compiere.model.Query;
 import org.compiere.model.MOrg;
@@ -149,10 +150,21 @@ boolean processSinglePayment(MPayment payment, int workNumber) {
     if (invoices.isEmpty()) {
         logProcess("⏭️ Se omite Pago ${payment.getDocumentNo()}: No se encontraron facturas pendientes para este Socio de Negocio.");
         // Insertar el pago en la tabla tmp_payment_omitidos para evitar reprocesarlo hoy
-        String insertSql = "INSERT INTO tmp_payment_omitidos (c_bpartner_id, c_payment_id, dateommited) VALUES (?, ?, now())";
-        Object[] params = [payment.getC_BPartner_ID(), payment.get_ID()] as Object[];
-        int result = DB.executeUpdate(insertSql, params, false, g_TrxName);
-        logProcess("    -> Pago registrado en tmp_payment_omitidos (${result} rows affected).");
+        // Usando PreparedStatement directamente para manejar mejor duplicados y transacciones
+        String insertSql = "INSERT INTO tmp_payment_omitidos (c_bpartner_id, c_payment_id, dateommited) VALUES (?, ?, now()) ON CONFLICT (c_payment_id) DO NOTHING";
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = DB.prepareStatement(insertSql, g_TrxName);
+            pstmt.setInt(1, payment.getC_BPartner_ID());
+            pstmt.setInt(2, payment.get_ID());
+            int result = pstmt.executeUpdate();
+            logProcess("    -> Pago registrado en tmp_payment_omitidos (${result} rows affected).");
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error al insertar en tmp_payment_omitidos para pago ID ${payment.get_ID()}", e);
+            logProcess("    -> Advertencia: No se pudo registrar el pago en tmp_payment_omitidos: " + e.getMessage());
+        } finally {
+            DB.close(pstmt);
+        }
         return false;
     }
 
