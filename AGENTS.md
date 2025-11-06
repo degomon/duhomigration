@@ -1,6 +1,6 @@
 # Convenciones de Documentación para Agentes de IA
 
-Cualquier nueva documentación creada por un agente de IA debe seguir una convención de nomenclatura estricta para asegurar la consistencia y la trazabilidad.
+Cualquier nueva documentación creada por un agente de IA debe seguir una convención de nomenclatura estricta para asegurar la consistencia y la trazabilidad y debe colocarse en el folder docs.
 
 ## Formato de Nombre de Archivo
 
@@ -19,6 +19,6 @@ El formato para los nombres de archivo de documentación es:
 
 ### Ejemplo
 
-Si se crea un documento que describe el flujo de creación de facturas a las 2:45 PM del 5 de noviembre de 2025, el nombre del archivo debería ser:
+Usar GMT-6. Si se crea un documento que describe el flujo de creación de facturas a las 2:45 PM del 5 de noviembre de 2025, el nombre del archivo debería ser:
 
 `20251105-1445-flujo-creacion-facturas.md`
