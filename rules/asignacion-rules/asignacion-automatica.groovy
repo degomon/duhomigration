@@ -126,7 +126,7 @@ List<MInvoice> getPendingInvoices(int C_BPartner_ID, Timestamp paymentDate) {
     List<MInvoice> orderedInvoices = new ArrayList<MInvoice>();
     
     // 1. Obtener facturas de interés anteriores a la fecha del pago, ordenadas de la más antigua a la más actual
-    String whereClauseInterest = "IsSOTrx='Y' AND IsPaid='N' AND DocStatus='CO' AND C_BPartner_ID=? AND C_DocType_ID=? AND DateInvoiced<?";
+    String whereClauseInterest = "IsSOTrx='Y' AND IsPaid='N' AND DocStatus='CO' AND C_BPartner_ID=? AND C_DocType_ID=? AND DateInvoiced<=?";
     List<MInvoice> interestInvoices = new Query(g_Ctx, MInvoice.Table_Name, whereClauseInterest, g_TrxName)
         .setParameters(C_BPartner_ID, INTERES_DOCTYPE_ID, paymentDate)
         .setOrderBy(MInvoice.COLUMNNAME_DateInvoiced + " ASC")
