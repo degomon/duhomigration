@@ -4,7 +4,10 @@
  * Proceso para asignar automáticamente pagos de clientes (C_Payment) que no han sido asignados
  * a sus facturas pendientes (C_Invoice).
  *
- * Versión: 20251106
+ * Versión: 20251106-2
+ * Changelog:
+ * - 20251106-2: Agregado parámetro opcional 'fecha' para procesar una fecha específica
+ * - 20251106: Versión inicial
  *
  * Lógica de Negocio:
  * 1.  Busca pagos de clientes (recibos) que estén completados pero no asignados.
@@ -43,6 +46,7 @@ import java.util.ArrayList;
 import groovy.time.TimeCategory;
 import groovy.time.TimeDuration;
 import groovy.transform.Field;
+import org.compiere.process.ProcessInfoParameter;
 
 // ==========================================================================
 //    CONFIGURACIÓN
@@ -122,7 +126,7 @@ List<MInvoice> getPendingInvoices(int C_BPartner_ID, Timestamp paymentDate) {
     List<MInvoice> orderedInvoices = new ArrayList<MInvoice>();
     
     // 1. Obtener facturas de interés anteriores a la fecha del pago, ordenadas de la más antigua a la más actual
-    String whereClauseInterest = "IsSOTrx='Y' AND IsPaid='N' AND DocStatus='CO' AND C_BPartner_ID=? AND C_DocType_ID=? AND DateInvoiced<?";
+    String whereClauseInterest = "IsSOTrx='Y' AND IsPaid='N' AND DocStatus='CO' AND C_BPartner_ID=? AND C_DocType_ID=? AND DateInvoiced<=?";
     List<MInvoice> interestInvoices = new Query(g_Ctx, MInvoice.Table_Name, whereClauseInterest, g_TrxName)
         .setParameters(C_BPartner_ID, INTERES_DOCTYPE_ID, paymentDate)
         .setOrderBy(MInvoice.COLUMNNAME_DateInvoiced + " ASC")
@@ -228,13 +232,36 @@ try {
     this.g_Ctx = A_Ctx;
     this.g_TrxName = A_TrxName; // Transacción global inicial
 
-    String sqlGetDate = (DB.isOracle() ? "SELECT TRUNC(SysDate) FROM DUAL" : "SELECT now()::date");
-    this.g_Today = DB.getSQLValueTSEx(g_TrxName, sqlGetDate);
-    if (g_Today == null) {
-        throw new AdempiereException("No se pudo obtener la fecha de la base de datos.");
+    // ==========================================================================
+    //    MANEJO DE PARÁMETROS
+    // ==========================================================================
+    Timestamp fechaParam = null;
+    ProcessInfoParameter[] para = A_Parameter;
+    for (int i = 0; i < para.length; i++) {
+        String name = para[i].getParameterName();
+        if (para[i].getParameter() == null) {
+            // Parámetro vacío, se ignora
+        } else if (name.equals("fecha")) {
+            fechaParam = para[i].getParameterAsTimestamp();
+        } else {
+            log.log(Level.SEVERE, "Unknown Parameter: " + name);
+        }
     }
 
+    // Determinar la fecha de procesamiento
+    Timestamp g_Today_temp = fechaParam;
+    if (g_Today_temp == null) {
+        // Si no se proporcionó el parámetro fecha, usar la fecha actual
+        String sqlGetDate = (DB.isOracle() ? "SELECT TRUNC(SysDate) FROM DUAL" : "SELECT now()::date");
+        g_Today_temp = DB.getSQLValueTSEx(g_TrxName, sqlGetDate);
+        if (g_Today_temp == null) {
+            throw new AdempiereException("No se pudo obtener la fecha de la base de datos.");
+        }
+    }
+    this.g_Today = g_Today_temp;
+
     logProcess("✅ Iniciando proceso de Asignación Automática de Pagos...");
+    logProcess("🗓️ Fecha de procesamiento: " + g_Today.toString().substring(0, 10));
     
     List<MPayment> payments = getUnallocatedPayments();
 
