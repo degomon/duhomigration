@@ -153,7 +153,7 @@ boolean processSinglePayment(MPayment payment, int workNumber) {
         // Insertar el pago en la tabla tmp_payment_omitidos para evitar reprocesarlo hoy
         // Usando null como transaction name para que el INSERT se ejecute en auto-commit
         // y persista independientemente de si la transacción principal se revierte
-        String insertSql = "INSERT INTO tmp_payment_omitidos (c_bpartner_id, c_payment_id, dateommited) VALUES (?, ?, now()) ON CONFLICT (c_payment_id) DO NOTHING";
+        String insertSql = "INSERT INTO tmp_payment_omitidos (c_bpartner_id, c_payment_id, dateommited) VALUES (?, ?, now())";
         PreparedStatement pstmt = null;
         try {
             pstmt = DB.prepareStatement(insertSql, null);
