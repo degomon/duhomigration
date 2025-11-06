@@ -1,6 +1,7 @@
 /**
  * CarteraBridgeNativeAutocomplete
  * Proceso para sincronizar legacy_cartera con C_Invoice y C_Payment de forma masiva.
+ * 20251106 - cálculo de interés diario basado en saldo pendiente según fórmula Excel
  * 20250927 - corrección en monto de schedule interés
  * Versión: 20250705 (Final y Corregido)
  */
