@@ -44,10 +44,14 @@ import java.math.BigDecimal
 CLogger log = CLogger.getCLogger("ModelValidator.C_Invoice.PopulateTmpInvoiceOpen")
 
 // Handle different variable name conventions (A_TrxName vs trxName, etc.)
-def trxName = binding.hasVariable('A_TrxName') ? A_TrxName : (binding.hasVariable('trxName') ? binding.getVariable('trxName') : null)
-def ctx = binding.hasVariable('A_Ctx') ? A_Ctx : (binding.hasVariable('ctx') ? binding.getVariable('ctx') : null)
-def eventType = binding.hasVariable('TYPE') ? TYPE : (binding.hasVariable('type') ? binding.getVariable('type') : -1)
-def invoice = binding.hasVariable('po') ? po : null
+// Try both naming conventions used in iDempiere scripts
+def trxName = binding.hasVariable('A_TrxName') ? binding.getVariable('A_TrxName') : 
+              (binding.hasVariable('trxName') ? binding.getVariable('trxName') : null)
+def ctx = binding.hasVariable('A_Ctx') ? binding.getVariable('A_Ctx') : 
+          (binding.hasVariable('ctx') ? binding.getVariable('ctx') : null)
+def eventType = binding.hasVariable('TYPE') ? binding.getVariable('TYPE') : 
+                (binding.hasVariable('type') ? binding.getVariable('type') : -1)
+def invoice = binding.hasVariable('po') ? binding.getVariable('po') : null
 
 // Validate context
 if (ctx == null || trxName == null) {
