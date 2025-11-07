@@ -43,6 +43,19 @@ desembolso AS (
         ci.fecha as created
     FROM cartera_info ci
 ),
+asignaciones_pago AS (
+    -- Pre-calcular las asignaciones de pagos por tipo de cargo para optimizar el query
+    SELECT 
+        al.c_payment_id,
+        invl.c_charge_id,
+        SUM(al.amount) as monto_asignado
+    FROM c_allocationline al
+    INNER JOIN c_invoice inv ON al.c_invoice_id = inv.c_invoice_id
+    INNER JOIN c_invoiceline invl ON inv.c_invoice_id = invl.c_invoice_id
+    WHERE al.isactive = 'Y'
+    AND invl.c_charge_id IN (1000028, 1000029)  -- 1000028: Capital/Principal, 1000029: Intereses
+    GROUP BY al.c_payment_id, invl.c_charge_id
+),
 pagos AS (
     -- Pagos realizados al crédito (créditos)
     SELECT 
@@ -55,29 +68,17 @@ pagos AS (
         'Pago/Cobro' as concepto,
         0.00::numeric as debito,
         cob.abono as credito,
-        -- Calcular monto asignado a intereses (facturas con c_charge_id = 1000029)
+        -- Monto asignado a intereses (c_charge_id = 1000029: Cargo por Intereses)
         COALESCE(
-            (
-                SELECT SUM(al.amount)
-                FROM c_allocationline al
-                INNER JOIN c_invoice inv ON al.c_invoice_id = inv.c_invoice_id
-                INNER JOIN c_invoiceline invl ON inv.c_invoice_id = invl.c_invoice_id
-                WHERE al.c_payment_id = cob.local_id
-                AND invl.c_charge_id = 1000029
-                AND al.isactive = 'Y'
-            ), 0.00
+            (SELECT monto_asignado FROM asignaciones_pago 
+             WHERE c_payment_id = cob.local_id AND c_charge_id = 1000029),
+            0.00
         )::numeric as asignado_interes,
-        -- Calcular monto asignado a saldo principal (facturas con c_charge_id = 1000028)
+        -- Monto asignado a saldo principal (c_charge_id = 1000028: Cargo por Capital/Principal)
         COALESCE(
-            (
-                SELECT SUM(al.amount)
-                FROM c_allocationline al
-                INNER JOIN c_invoice inv ON al.c_invoice_id = inv.c_invoice_id
-                INNER JOIN c_invoiceline invl ON inv.c_invoice_id = invl.c_invoice_id
-                WHERE al.c_payment_id = cob.local_id
-                AND invl.c_charge_id = 1000028
-                AND al.isactive = 'Y'
-            ), 0.00
+            (SELECT monto_asignado FROM asignaciones_pago 
+             WHERE c_payment_id = cob.local_id AND c_charge_id = 1000028),
+            0.00
         )::numeric as asignado_principal,
         cob.created
     FROM legacy_cobro cob
