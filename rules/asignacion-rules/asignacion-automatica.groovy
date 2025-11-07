@@ -149,7 +149,7 @@ List<MInvoice> getPendingInvoices(int C_BPartner_ID, Timestamp paymentDate) {
  * Procesa la asignación para un único pago.
  * @param payment El pago a procesar
  * @param workNumber Número de trabajo para logging
- * @param allocationDate Timestamp - Fecha para la asignación (DateAcct y DateTrx). Si es null, usa g_Today
+ * @param allocationDate (Timestamp, opcional) Fecha para la asignación (DateAcct y DateTrx). Si es null, usa g_Today
  */
 boolean processSinglePayment(MPayment payment, int workNumber, Timestamp allocationDate = null) {
     logProcess("⚙️ [${workNumber}] Procesando Pago ${payment.getDocumentNo()} de ${payment.getC_BPartner().getName()} por ${payment.getPayAmt()}...");
