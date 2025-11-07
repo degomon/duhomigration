@@ -4,8 +4,9 @@
  * Proceso para asignar automáticamente pagos de clientes (C_Payment) que no han sido asignados
  * a sus facturas pendientes (C_Invoice).
  *
- * Versión: 20251107-1
+ * Versión: 20251107-2
  * Changelog:
+ * - 20251107-2: Agregado filtro opcional por pay.datetrx en getUnallocatedPayments cuando se proporciona parámetro fecha
  * - 20251107-1: Modificado processSinglePayment para recibir parámetro de fecha para setDateAcct y setDateTrx
  * - 20251106-2: Agregado parámetro opcional 'fecha' para procesar una fecha específica
  * - 20251106: Versión inicial
@@ -79,8 +80,9 @@ def logProcess(String message) {
 /**
  * Obtiene una lista de pagos completados que no han sido asignados, usando un query SQL directo
  * para mayor eficiencia y precisión, como fue solicitado.
+ * @param filterDate (Timestamp, opcional) Fecha para filtrar pagos por pay.datetrx. Si es null, no se aplica filtro por fecha.
  */
-List<MPayment> getUnallocatedPayments() {
+List<MPayment> getUnallocatedPayments(Timestamp filterDate = null) {
     List<MPayment> payments = new ArrayList<MPayment>();
     String sql = """
         SELECT pay.*
@@ -93,8 +95,14 @@ List<MPayment> getUnallocatedPayments() {
             AND cal.C_Payment_ID IS NULL
             AND EXISTS (select 1 from tmp_invoice_open io where io.c_bpartner_id = pay.c_bpartner_id and io.dateinvoiced <= pay.dateacct)
             AND NOT EXISTS (select 1 from tmp_payment_omitidos om where om.c_payment_id = pay.c_payment_id and om.dateommited::date = now()::date)
-        ORDER BY pay.DateAcct ASC
     """;
+    
+    // Agregar filtro por fecha si se proporciona
+    if (filterDate != null) {
+        sql += "            AND pay.datetrx::date = ?::date\n";
+    }
+    
+    sql += "        ORDER BY pay.DateAcct ASC\n";
 
     if (RECORD_LIMIT > 0) {
         sql += " LIMIT " + RECORD_LIMIT;
@@ -104,6 +112,9 @@ List<MPayment> getUnallocatedPayments() {
     ResultSet rs = null;
     try {
         pstmt = DB.prepareStatement(sql, g_TrxName);
+        if (filterDate != null) {
+            pstmt.setTimestamp(1, filterDate);
+        }
         rs = pstmt.executeQuery();
         while (rs.next()) {
             // Instanciar el MPayment directamente desde el ResultSet
@@ -270,7 +281,8 @@ try {
     logProcess("✅ Iniciando proceso de Asignación Automática de Pagos...");
     logProcess("🗓️ Fecha de procesamiento: " + g_Today.toString().substring(0, 10));
     
-    List<MPayment> payments = getUnallocatedPayments();
+    // Pasar fechaParam para filtrar pagos por datetrx si se proporcionó
+    List<MPayment> payments = getUnallocatedPayments(fechaParam);
 
     if (payments.isEmpty()) {
         result = "Proceso finalizado. No se encontraron pagos pendientes de asignación.";
