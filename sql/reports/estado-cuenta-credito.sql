@@ -145,7 +145,7 @@ SELECT
         CASE 
             WHEN tm.tipo_movimiento = 'capital' THEN tm.debito
             WHEN tm.tipo_movimiento = 'pago' THEN -tm.asignado_principal
-            ELSE 0
+            ELSE 0.00::numeric
         END
     ) OVER (ORDER BY tm.fecha_movimiento, tm.created) as saldo_capital,
     -- Saldo acumulado de interés
@@ -153,7 +153,7 @@ SELECT
         CASE 
             WHEN tm.tipo_movimiento = 'interes' THEN tm.debito
             WHEN tm.tipo_movimiento = 'pago' THEN -tm.asignado_interes
-            ELSE 0
+            ELSE 0.00::numeric
         END
     ) OVER (ORDER BY tm.fecha_movimiento, tm.created) as saldo_interes,
     ci.codigo_cliente,
