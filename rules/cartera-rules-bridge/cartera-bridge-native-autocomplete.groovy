@@ -74,6 +74,8 @@ def calcularTasaOculta = { BigDecimal monto, BigDecimal interesTotal, int numCuo
     BigDecimal cuotaNivelada = pagoTotal.divide(BigDecimal.valueOf(numCuotas), 10, RoundingMode.HALF_UP)
     
     // Búsqueda binaria de la tasa diaria
+    // Rango típico: 0.1% a 2% diario (0.001 - 0.020)
+    // Cubre la mayoría de escenarios de préstamos a corto plazo
     BigDecimal tasaMin = BigDecimal.valueOf(0.001)
     BigDecimal tasaMax = BigDecimal.valueOf(0.020)
     BigDecimal tolerancia = BigDecimal.valueOf(0.0001)
@@ -170,6 +172,7 @@ def crearCuotasPagoFlat = { ProcessInfo pi, MInvoice invoice, GenericPO cartera,
             interesDelDia = saldoPendiente.multiply(tasaDiariaOculta)
             interesDelDia = interesDelDia.setScale(4, RoundingMode.HALF_UP)
             // Pagar todo el saldo restante como capital
+            // Nota: La cuota del último día será interesDelDia + capitalDelDia (saldo completo)
             capitalDelDia = saldoPendiente
         } else {
             // Si el capital a pagar excede el saldo pendiente en días intermedios, ajustar
