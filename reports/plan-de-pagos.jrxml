@@ -1,0 +1,374 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Jaspersoft Studio version 6.21.2.final using JasperReports Library version 6.21.2-8434a0bd7c3bbc37cbf916f2968d35e4b165821a  -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="plan-de-pagos" language="groovy" pageWidth="792" pageHeight="612" orientation="Landscape" columnWidth="752" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="aaaa8d96-6303-4767-87b3-6c15fd67e9eb">
+	<property name="ireport.zoom" value="1.0"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<property name="com.jaspersoft.studio.data.defaultdataadapter" value="DUHOPROD"/>
+	<property name="com.jaspersoft.studio.data.sql.tables" value=""/>
+	<parameter name="RECORD_ID" class="java.lang.Integer"/>
+	<parameter name="AD_PINSTANCE_ID" class="java.lang.Integer"/>
+	<queryString language="plsql">
+		<![CDATA[WITH tenant AS (
+    SELECT
+        conf.value::json ->> 'logo-url'   AS logourl,
+        conf.value::json ->> 'company-name' AS companyname
+    FROM ad_pinstance pin
+    INNER JOIN ad_client cli 
+        ON pin.ad_client_id = cli.ad_client_id
+    INNER JOIN ad_sysconfig conf 
+        ON cli.ad_client_id = conf.ad_client_id
+       AND conf.name = 'DEVM_CONF'
+    WHERE pin.ad_pinstance_id = $P{AD_PINSTANCE_ID}
+)
+
+SELECT 
+    bp.value AS bpartner_value,
+    bp.name  AS bpartner_name,
+    c.legacy_cartera_id,
+    c.fecha,
+    c.monto,
+    c.cuota,
+    (c.cuota - s.dueamt) AS cuota_principal,
+    c.dias_cre,
+    c.valorinteres,
+    c.montototal,
+    s.duedate,
+    s.dueamt,
+    (c.cuota + s.dueamt) AS cuota_total_dia,
+	org.value as codigo_organizacion,
+	org.name as nombre_organizacion,
+	te.logourl,
+    te.companyname
+FROM adempiere.legacy_cartera c
+INNER JOIN adempiere.c_bpartner bp 
+    ON bp.c_bpartner_id = c.c_bpartner_id
+INNER JOIN adempiere.legacy_schedule s
+    ON s.legacy_cartera_id = c.legacy_cartera_id
+INNER JOIN adempiere.ad_org org
+	on org.ad_org_id = c.ad_org_id
+CROSS JOIN tenant te
+where c.legacy_cartera_ID = $P{RECORD_ID}
+ORDER BY bp.name, s.duedate]]>
+	</queryString>
+	<field name="bpartner_value" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="bpartner_value"/>
+		<property name="com.jaspersoft.studio.field.label" value="bpartner_value"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="c_bpartner"/>
+	</field>
+	<field name="bpartner_name" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="bpartner_name"/>
+		<property name="com.jaspersoft.studio.field.label" value="bpartner_name"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="c_bpartner"/>
+	</field>
+	<field name="legacy_cartera_id" class="java.lang.Long">
+		<property name="com.jaspersoft.studio.field.name" value="legacy_cartera_id"/>
+		<property name="com.jaspersoft.studio.field.label" value="legacy_cartera_id"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera"/>
+	</field>
+	<field name="fecha" class="java.sql.Timestamp">
+		<property name="com.jaspersoft.studio.field.name" value="fecha"/>
+		<property name="com.jaspersoft.studio.field.label" value="fecha"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera"/>
+	</field>
+	<field name="monto" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="monto"/>
+		<property name="com.jaspersoft.studio.field.label" value="monto"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera"/>
+	</field>
+	<field name="cuota" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="cuota"/>
+		<property name="com.jaspersoft.studio.field.label" value="cuota"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera"/>
+	</field>
+	<field name="cuota_principal" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="cuota_principal"/>
+		<property name="com.jaspersoft.studio.field.label" value="cuota_principal"/>
+	</field>
+	<field name="dias_cre" class="java.lang.Integer">
+		<property name="com.jaspersoft.studio.field.name" value="dias_cre"/>
+		<property name="com.jaspersoft.studio.field.label" value="dias_cre"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera"/>
+	</field>
+	<field name="valorinteres" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="valorinteres"/>
+		<property name="com.jaspersoft.studio.field.label" value="valorinteres"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera"/>
+	</field>
+	<field name="montototal" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="montototal"/>
+		<property name="com.jaspersoft.studio.field.label" value="montototal"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_cartera"/>
+	</field>
+	<field name="duedate" class="java.sql.Timestamp">
+		<property name="com.jaspersoft.studio.field.name" value="duedate"/>
+		<property name="com.jaspersoft.studio.field.label" value="duedate"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_schedule"/>
+	</field>
+	<field name="dueamt" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="dueamt"/>
+		<property name="com.jaspersoft.studio.field.label" value="dueamt"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="legacy_schedule"/>
+	</field>
+	<field name="cuota_total_dia" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="cuota_total_dia"/>
+		<property name="com.jaspersoft.studio.field.label" value="cuota_total_dia"/>
+	</field>
+	<field name="codigo_organizacion" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="codigo_organizacion"/>
+		<property name="com.jaspersoft.studio.field.label" value="codigo_organizacion"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="ad_org"/>
+	</field>
+	<field name="nombre_organizacion" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="nombre_organizacion"/>
+		<property name="com.jaspersoft.studio.field.label" value="nombre_organizacion"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="ad_org"/>
+	</field>
+	<field name="logourl" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="logourl"/>
+		<property name="com.jaspersoft.studio.field.label" value="logourl"/>
+	</field>
+	<field name="companyname" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="companyname"/>
+		<property name="com.jaspersoft.studio.field.label" value="companyname"/>
+	</field>
+	<variable name="cuota_total_dia1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{cuota}]]></variableExpression>
+	</variable>
+	<variable name="valorinteres1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{valorinteres}]]></variableExpression>
+	</variable>
+	<variable name="dueamt1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{dueamt}]]></variableExpression>
+	</variable>
+	<variable name="cuota1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{cuota_principal}]]></variableExpression>
+	</variable>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="142" splitType="Stretch">
+			<textField>
+				<reportElement x="0" y="0" width="772" height="15" uuid="5cc4d76e-a275-456e-a21c-505e75f5a8e1">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement>
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{companyname}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="0" y="20" width="772" height="15" uuid="5f9b6323-1117-43f4-a422-863194e5d704">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement>
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{nombre_organizacion}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="0" y="40" width="772" height="15" uuid="2970075c-cb76-4c86-9e25-1699db64121f">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement>
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{bpartner_value} + " - " + $F{bpartner_name}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00#;(#,##0.00#)">
+				<reportElement x="80" y="59" width="100" height="15" uuid="5a7c7c1d-c2a5-460f-9973-84cf9353a445">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{monto}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="0" y="59" width="80" height="15" uuid="947a47b2-e3e0-45e2-8146-8705e7c6b8c8">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement>
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[Monto Base]]></text>
+			</staticText>
+			<textField pattern="#,##0.00#;(#,##0.00#)">
+				<reportElement x="80" y="79" width="100" height="15" uuid="8fae6831-a229-481d-a254-ad23c62f8e03">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{valorinteres}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="0" y="79" width="80" height="15" uuid="3a9ed2e8-c922-4cb9-b73c-f2b6091f5be4">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement>
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[Interés]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="99" width="80" height="15" uuid="5a141b7c-5f18-43f5-b76e-0fbbd7a67f3d">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement>
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[Monto Total]]></text>
+			</staticText>
+			<textField pattern="#,##0.00#;(#,##0.00#)">
+				<reportElement x="80" y="99" width="100" height="15" uuid="27ab6f5c-2208-4bd8-ab88-89607dd7f54d">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{montototal}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="200" y="59" width="80" height="15" uuid="2c8582cd-2116-45e2-8b86-34e9c523c561">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement>
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[Plazo (días)]]></text>
+			</staticText>
+			<textField pattern="#,##0.###;(#,##0.###)">
+				<reportElement x="280" y="59" width="100" height="15" uuid="2b54ca69-0096-4084-ac23-75b55d574f91">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{dias_cre}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="280" y="80" width="100" height="15" uuid="bb5c0a23-3e2d-4a2b-ae76-2886c7d16ba9">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{fecha}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="200" y="80" width="80" height="15" uuid="a7760770-039f-47d6-9a2a-c8e4750fc213">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement>
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[Fecha]]></text>
+			</staticText>
+		</band>
+	</title>
+	<columnHeader>
+		<band height="23" splitType="Stretch">
+			<staticText>
+				<reportElement x="31" y="0" width="100" height="20" uuid="7e4b844d-af1e-43f6-abb7-42b53a202942">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="e9d8ffae-9e0c-4e46-acd8-1d0c770da785"/>
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[Fecha]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="131" y="0" width="65" height="20" uuid="9917ef27-e336-4be0-80ed-2eeae20a662c">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="b9e734a2-d00d-4d4e-a2da-d3c1e40c8264"/>
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[Cuota]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="196" y="0" width="65" height="20" uuid="5b3b79ad-c0c2-40e9-8ad9-ebb4c8eaf16c">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="745994a8-a250-43f0-8901-39fa8c4815a1"/>
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[Interés]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="261" y="0" width="65" height="20" uuid="9e8de8cc-9e9a-4408-95ee-6a7e6bd53e1e">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="5e33107e-74da-4304-b1eb-498df136353a"/>
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[Total Cuota]]></text>
+			</staticText>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="12" splitType="Stretch">
+			<property name="com.jaspersoft.studio.unit.height" value="px"/>
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="31" y="0" width="100" height="12" uuid="8c65545c-0400-4514-8101-0966fed16fcc">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="e9d8ffae-9e0c-4e46-acd8-1d0c770da785"/>
+					<property name="com.jaspersoft.studio.unit.y" value="px"/>
+				</reportElement>
+				<textElement verticalAlignment="Middle"/>
+				<textFieldExpression><![CDATA[$F{duedate}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="131" y="0" width="65" height="12" uuid="ca53f45b-93b2-496a-8c5a-61b5364834d3">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="b9e734a2-d00d-4d4e-a2da-d3c1e40c8264"/>
+					<property name="com.jaspersoft.studio.unit.y" value="px"/>
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle"/>
+				<textFieldExpression><![CDATA[$F{cuota_principal}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="196" y="0" width="65" height="12" uuid="166f2297-7f03-4b78-8c78-33b87b47f1af">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="745994a8-a250-43f0-8901-39fa8c4815a1"/>
+					<property name="com.jaspersoft.studio.unit.y" value="px"/>
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle"/>
+				<textFieldExpression><![CDATA[$F{dueamt}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="261" y="0" width="65" height="12" uuid="8119a952-31c9-4ad0-b1ad-844a4cc568d9">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="5e33107e-74da-4304-b1eb-498df136353a"/>
+					<property name="com.jaspersoft.studio.unit.y" value="px"/>
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle"/>
+				<textFieldExpression><![CDATA[$F{cuota}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<summary>
+		<band height="44" splitType="Stretch">
+			<textField pattern="#,##0.00#;(#,##0.00#)">
+				<reportElement x="261" y="0" width="65" height="30" uuid="f9e32a3e-9859-4c11-a913-cebc340ca8bb"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{cuota_total_dia1}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00#;(#,##0.00#)">
+				<reportElement x="196" y="0" width="64" height="30" uuid="9d3a30a3-859c-48e8-bd7f-341e0a430989"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{dueamt1}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00#;(#,##0.00#)">
+				<reportElement x="131" y="0" width="65" height="30" uuid="ed53f739-8fe8-4033-8388-5ed4219f285d"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{cuota1}]]></textFieldExpression>
+			</textField>
+		</band>
+	</summary>
+</jasperReport>
