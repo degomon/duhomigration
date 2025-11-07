@@ -44,17 +44,16 @@ desembolso AS (
     FROM cartera_info ci
 ),
 asignaciones_pago AS (
-    -- Pre-calcular las asignaciones de pagos por tipo de cargo para optimizar el query
+    -- Pre-calcular las asignaciones de pagos por tipo de documento para optimizar el query
     SELECT 
         al.c_payment_id,
-        invl.c_charge_id,
+        inv.c_doctype_id,
         SUM(al.amount) as monto_asignado
     FROM c_allocationline al
     INNER JOIN c_invoice inv ON al.c_invoice_id = inv.c_invoice_id
-    INNER JOIN c_invoiceline invl ON inv.c_invoice_id = invl.c_invoice_id
     WHERE al.isactive = 'Y'
-    AND invl.c_charge_id IN (1000028, 1000029)  -- 1000028: Capital/Principal, 1000029: Intereses
-    GROUP BY al.c_payment_id, invl.c_charge_id
+    AND inv.c_doctype_id IN (1000048, 1000051)  -- 1000048: CxC Capital, 1000051: CxC Interés
+    GROUP BY al.c_payment_id, inv.c_doctype_id
 ),
 pagos AS (
     -- Pagos realizados al crédito (créditos)
@@ -68,16 +67,16 @@ pagos AS (
         'Pago/Cobro' as concepto,
         0.00::numeric as debito,
         cob.abono as credito,
-        -- Monto asignado a intereses (c_charge_id = 1000029: Cargo por Intereses)
+        -- Monto asignado a intereses (c_doctype_id = 1000051: CxC por Interés)
         COALESCE(asig_int.monto_asignado, 0.00)::numeric as asignado_interes,
-        -- Monto asignado a saldo principal (c_charge_id = 1000028: Cargo por Capital/Principal)
+        -- Monto asignado a saldo principal (c_doctype_id = 1000048: CxC por Capital)
         COALESCE(asig_prin.monto_asignado, 0.00)::numeric as asignado_principal,
         cob.created
     FROM legacy_cobro cob
     LEFT JOIN asignaciones_pago asig_int 
-        ON asig_int.c_payment_id = cob.local_id AND asig_int.c_charge_id = 1000029
+        ON asig_int.c_payment_id = cob.local_id AND asig_int.c_doctype_id = 1000051
     LEFT JOIN asignaciones_pago asig_prin 
-        ON asig_prin.c_payment_id = cob.local_id AND asig_prin.c_charge_id = 1000028
+        ON asig_prin.c_payment_id = cob.local_id AND asig_prin.c_doctype_id = 1000048
     WHERE cob.id_cartera = $P{legacy_cartera_id}
     AND cob.abono > 0
 ),
