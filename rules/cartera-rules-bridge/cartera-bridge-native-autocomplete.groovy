@@ -177,13 +177,18 @@ try {
             }
 
             BigDecimal monto = car.get_Value('monto')
-            BigDecimal montoTotal = car.get_Value('montototal')
+            BigDecimal tasa = car.get_Value('tasa') ?: BigDecimal.ZERO
             Date fecha = car.get_Value('fecha')
             int cantidadCuotas = car.get_ValueAsInt('dias_cre')
-            if (monto == null || montoTotal == null || fecha == null || cantidadCuotas <= 0) {
+            if (monto == null || tasa == null || fecha == null || cantidadCuotas <= 0) {
                 A_ProcessInfo.addLog(0,null,null,"⏭️ [${workNumber}] Se omite Cartera ID ${carteraId}: Datos del crédito incompletos.")
                 skippedCount++; trx.close(); continue
             }
+            // Calcular montoTotal usando la fórmula: monto × tasa × 12 × cantidadCuotas / 360
+            BigDecimal montoTotal = monto.multiply(tasa)
+                .multiply(BigDecimal.valueOf(12))
+                .multiply(BigDecimal.valueOf(cantidadCuotas))
+                .divide(BigDecimal.valueOf(360), 4, RoundingMode.HALF_UP)
 
             A_ProcessInfo.addLog(0,null,null,"⚙️ [${workNumber}] Procesando Cartera ID ${carteraId}...")
 
