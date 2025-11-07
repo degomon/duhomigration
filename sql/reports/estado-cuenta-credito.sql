@@ -52,18 +52,17 @@ factura_capital AS (
     -- Registro de la factura de capital (débito)
     SELECT 
         ci.legacy_cartera_id,
-        ci.fecha::date as fecha_movimiento,
-        COALESCE(
-            (SELECT documentno FROM c_invoice inv WHERE inv.c_invoice_id = ci.invoice_id_capital),
-            'CAPITAL-' || ci.legacy_cartera_id::varchar
-        ) as documento,
+        COALESCE(inv.dateinvoiced::date, ci.fecha::date) as fecha_movimiento,
+        COALESCE(inv.documentno, 'CAPITAL-' || ci.legacy_cartera_id::varchar) as documento,
         'CxC Capital' as concepto,
-        ci.montototal as debito,
+        COALESCE(inv.grandtotal, ci.montototal) as debito,
         0.00::numeric as credito,
         0.00::numeric as asignado_interes,
         0.00::numeric as asignado_principal,
-        ci.fecha as created
+        COALESCE(inv.created, ci.fecha) as created,
+        'capital' as tipo_movimiento
     FROM cartera_info ci
+    LEFT JOIN c_invoice inv ON ci.invoice_id_capital = inv.c_invoice_id
 ),
 facturas_interes AS (
     -- Registros de facturas de interés (débitos)
@@ -76,7 +75,8 @@ facturas_interes AS (
         0.00::numeric as credito,
         0.00::numeric as asignado_interes,
         0.00::numeric as asignado_principal,
-        inv.created
+        inv.created,
+        'interes' as tipo_movimiento
     FROM legacy_schedule ls
     INNER JOIN cartera_info ci ON ls.legacy_cartera_id = ci.legacy_cartera_id
     INNER JOIN c_invoice inv ON ls.ref_invoice_id = inv.c_invoice_id
@@ -111,7 +111,8 @@ pagos AS (
         COALESCE(asig_int.monto_asignado, 0.00)::numeric as asignado_interes,
         -- Monto asignado a saldo principal (c_doctype_id = 1000048: CxC por Capital)
         COALESCE(asig_prin.monto_asignado, 0.00)::numeric as asignado_principal,
-        cob.created
+        cob.created,
+        'pago' as tipo_movimiento
     FROM legacy_cobro cob
     LEFT JOIN asignaciones_pago asig_int 
         ON asig_int.c_payment_id = cob.local_id AND asig_int.c_doctype_id = 1000051
@@ -137,8 +138,24 @@ SELECT
     tm.credito,
     tm.asignado_interes,
     tm.asignado_principal,
-    -- Saldo acumulado
+    -- Saldo acumulado total
     SUM(tm.debito - tm.credito) OVER (ORDER BY tm.fecha_movimiento, tm.created) as saldo,
+    -- Saldo acumulado de capital
+    SUM(
+        CASE 
+            WHEN tm.tipo_movimiento = 'capital' THEN tm.debito
+            WHEN tm.tipo_movimiento = 'pago' THEN -tm.asignado_principal
+            ELSE 0
+        END
+    ) OVER (ORDER BY tm.fecha_movimiento, tm.created) as saldo_capital,
+    -- Saldo acumulado de interés
+    SUM(
+        CASE 
+            WHEN tm.tipo_movimiento = 'interes' THEN tm.debito
+            WHEN tm.tipo_movimiento = 'pago' THEN -tm.asignado_interes
+            ELSE 0
+        END
+    ) OVER (ORDER BY tm.fecha_movimiento, tm.created) as saldo_interes,
     ci.codigo_cliente,
     ci.nombre_cliente
 FROM todos_movimientos tm
