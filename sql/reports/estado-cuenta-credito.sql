@@ -88,13 +88,12 @@ asignaciones_pago AS (
     -- Pre-calcular las asignaciones de pagos SOLO para las facturas de este crédito
     SELECT 
         al.c_payment_id,
-        inv.c_doctype_id,
+        fc.c_doctype_id,
         SUM(al.amount) as monto_asignado
     FROM c_allocationline al
     INNER JOIN facturas_credito fc ON al.c_invoice_id = fc.c_invoice_id
-    INNER JOIN c_invoice inv ON al.c_invoice_id = inv.c_invoice_id
     WHERE al.isactive = 'Y'
-    GROUP BY al.c_payment_id, inv.c_doctype_id
+    GROUP BY al.c_payment_id, fc.c_doctype_id
 ),
 pagos AS (
     -- Pagos realizados al crédito (créditos)
