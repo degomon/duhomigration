@@ -4,8 +4,9 @@
  * Proceso para asignar automáticamente pagos de clientes (C_Payment) que no han sido asignados
  * a sus facturas pendientes (C_Invoice).
  *
- * Versión: 20251106-2
+ * Versión: 20251107-1
  * Changelog:
+ * - 20251107-1: Modificado processSinglePayment para recibir parámetro de fecha para setDateAcct y setDateTrx
  * - 20251106-2: Agregado parámetro opcional 'fecha' para procesar una fecha específica
  * - 20251106: Versión inicial
  *
@@ -146,8 +147,11 @@ List<MInvoice> getPendingInvoices(int C_BPartner_ID, Timestamp paymentDate) {
 
 /**
  * Procesa la asignación para un único pago.
+ * @param payment El pago a procesar
+ * @param workNumber Número de trabajo para logging
+ * @param allocationDate (Timestamp, opcional) Fecha para la asignación (DateAcct y DateTrx). Si es null, usa g_Today
  */
-boolean processSinglePayment(MPayment payment, int workNumber) {
+boolean processSinglePayment(MPayment payment, int workNumber, Timestamp allocationDate = null) {
     logProcess("⚙️ [${workNumber}] Procesando Pago ${payment.getDocumentNo()} de ${payment.getC_BPartner().getName()} por ${payment.getPayAmt()}...");
 
     List<MInvoice> invoices = getPendingInvoices(payment.getC_BPartner_ID(), payment.getDateAcct());
@@ -176,10 +180,13 @@ boolean processSinglePayment(MPayment payment, int workNumber) {
 
     BigDecimal amountToAllocate = payment.getPayAmt();
     
+    // Usar la fecha proporcionada o g_Today como default
+    Timestamp dateForAllocation = allocationDate != null ? allocationDate : g_Today;
+    
     MAllocationHdr allocHdr = new MAllocationHdr(g_Ctx, 0, g_TrxName);
     allocHdr.setAD_Org_ID(payment.getAD_Org_ID());
-    allocHdr.setDateAcct(g_Today);
-    allocHdr.setDateTrx(g_Today);
+    allocHdr.setDateAcct(dateForAllocation);
+    allocHdr.setDateTrx(dateForAllocation);
     allocHdr.setC_Currency_ID(payment.getC_Currency_ID());
     allocHdr.setC_DocType_ID(ALLOCATION_DOCTYPE_ID);
     allocHdr.setDescription("Asignación automática para Pago ${payment.getDocumentNo()}");
@@ -283,7 +290,7 @@ try {
             // Recargamos el pago dentro de la nueva transacción
             MPayment paymentInTrx = new MPayment(g_Ctx, payment.get_ID(), g_TrxName);
 
-            if (processSinglePayment(paymentInTrx, i + 1)) {
+            if (processSinglePayment(paymentInTrx, i + 1, g_Today)) {
                 trx.commit();
                 processedCount++;
             } else {
