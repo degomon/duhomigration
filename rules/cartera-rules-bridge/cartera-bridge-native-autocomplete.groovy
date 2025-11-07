@@ -177,10 +177,10 @@ try {
             }
 
             BigDecimal monto = car.get_Value('monto')
-            BigDecimal tasa = car.get_Value('tasa') ?: BigDecimal.ZERO
+            BigDecimal tasa = car.get_Value('tasa')
             Date fecha = car.get_Value('fecha')
             int cantidadCuotas = car.get_ValueAsInt('dias_cre')
-            if (monto == null || tasa == null || fecha == null || cantidadCuotas <= 0) {
+            if (monto == null || tasa == null || tasa.compareTo(BigDecimal.ZERO) <= 0 || fecha == null || cantidadCuotas <= 0) {
                 A_ProcessInfo.addLog(0,null,null,"⏭️ [${workNumber}] Se omite Cartera ID ${carteraId}: Datos del crédito incompletos.")
                 skippedCount++; trx.close(); continue
             }
