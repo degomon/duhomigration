@@ -56,16 +56,79 @@ def esDomingo = { Date fecha ->
     return cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY
 }
 
+def calcularTasaOculta = { BigDecimal monto, BigDecimal interesTotal, int numCuotas ->
+    /**
+     * Calcula la tasa diaria "oculta" que produce un interés total fijo exacto
+     * usando el método de interés sobre saldo con cuotas niveladas.
+     * 
+     * @param monto Capital del préstamo
+     * @param interesTotal Interés total deseado (fijo)
+     * @param numCuotas Número de cuotas/días
+     * @return Tasa diaria oculta que produce el interés total exacto
+     */
+    if (monto.compareTo(BigDecimal.ZERO) <= 0 || interesTotal.compareTo(BigDecimal.ZERO) <= 0 || numCuotas <= 0) {
+        return BigDecimal.ZERO
+    }
+    
+    BigDecimal pagoTotal = monto.add(interesTotal)
+    BigDecimal cuotaNivelada = pagoTotal.divide(BigDecimal.valueOf(numCuotas), 10, RoundingMode.HALF_UP)
+    
+    // Búsqueda binaria de la tasa diaria
+    // Rango típico: 0.1% a 2% diario (0.001 - 0.020)
+    // Cubre la mayoría de escenarios de préstamos a corto plazo
+    BigDecimal tasaMin = BigDecimal.valueOf(0.001)
+    BigDecimal tasaMax = BigDecimal.valueOf(0.020)
+    BigDecimal tolerancia = BigDecimal.valueOf(0.0001)
+    int maxIteraciones = 1000
+    
+    for (int iter = 0; iter < maxIteraciones; iter++) {
+        BigDecimal tasaDiaria = tasaMin.add(tasaMax).divide(BigDecimal.valueOf(2), 10, RoundingMode.HALF_UP)
+        
+        BigDecimal saldo = monto
+        BigDecimal totalInteresCalculado = BigDecimal.ZERO
+        
+        // Calcular interés total con esta tasa (días 1 a numCuotas-1)
+        for (int dia = 1; dia < numCuotas; dia++) {
+            BigDecimal interes = saldo.multiply(tasaDiaria)
+            BigDecimal capital = cuotaNivelada.subtract(interes)
+            saldo = saldo.subtract(capital)
+            totalInteresCalculado = totalInteresCalculado.add(interes)
+        }
+        
+        // Último día: interés sobre saldo restante
+        BigDecimal interesUltimoDia = saldo.multiply(tasaDiaria)
+        totalInteresCalculado = totalInteresCalculado.add(interesUltimoDia)
+        
+        // Verificar convergencia
+        BigDecimal diferencia = totalInteresCalculado.subtract(interesTotal).abs()
+        if (diferencia.compareTo(tolerancia) < 0) {
+            return tasaDiaria
+        }
+        
+        // Ajustar rango de búsqueda
+        if (totalInteresCalculado.compareTo(interesTotal) < 0) {
+            tasaMin = tasaDiaria
+        } else {
+            tasaMax = tasaDiaria
+        }
+    }
+    
+    // Si no converge, retornar el valor actual
+    return tasaMin.add(tasaMax).divide(BigDecimal.valueOf(2), 10, RoundingMode.HALF_UP)
+}
+
 def crearCuotasPagoFlat = { ProcessInfo pi, MInvoice invoice, GenericPO cartera, int numCuotas, BigDecimal montoTotal ->
     String trxName = invoice.get_TrxName()
     int carteraID = cartera.get_ValueAsInt('legacy_cartera_ID')
-    BigDecimal tasaMensual = cartera.get_Value('tasa') ?: BigDecimal.ZERO
     BigDecimal monto = cartera.get_Value('monto') ?: BigDecimal.ZERO
-    // La tasa almacenada es mensual (ej: 0.15 = 15% mensual)
-    // Para obtener tasa diaria: tasa mensual / 30
-    BigDecimal tasaDiaria = tasaMensual.divide(BigDecimal.valueOf(30), 10, RoundingMode.HALF_UP)
     
-    pi.addLog(0, null, null, "    -> Creando schedule para Invoice ${invoice.getDocumentNo()}, Cuotas: ${numCuotas}, Tasa Mensual: ${tasaMensual}, Tasa Diaria: ${tasaDiaria} Org de Cartera: ${cartera.getAD_Org_ID()} ")
+    // Calcular el interés total fijo basado en montoTotal
+    BigDecimal interesTotal = montoTotal.subtract(monto)
+    
+    // Calcular la tasa diaria "oculta" que produce exactamente este interés total
+    BigDecimal tasaDiariaOculta = calcularTasaOculta(monto, interesTotal, numCuotas)
+    
+    pi.addLog(0, null, null, "    -> Creando schedule para Invoice ${invoice.getDocumentNo()}, Cuotas: ${numCuotas}, Interés Total: ${interesTotal}, Tasa Diaria Oculta: ${tasaDiariaOculta} Org de Cartera: ${cartera.getAD_Org_ID()} ")
 
     DB.executeUpdate('DELETE FROM legacy_schedule WHERE legacy_cartera_ID = ?', [carteraID] as Object[], true, trxName)
 
@@ -81,16 +144,14 @@ def crearCuotasPagoFlat = { ProcessInfo pi, MInvoice invoice, GenericPO cartera,
             fechaCuota = TimeUtil.addDays(fechaCuota, 1)
         }
 
-        // Calcular interés diario basado en saldo pendiente
-        // Fórmula: Interes = Saldo × Tasa diaria × Días
-        // donde Tasa diaria = Tasa mensual / 30
-        // Días = 1 (pago diario)
-        BigDecimal interesDelDia = saldoPendiente.multiply(tasaDiaria)
+        // Calcular interés diario basado en saldo pendiente usando la tasa oculta
+        // Fórmula: Interés del día = Saldo × Tasa diaria oculta
+        BigDecimal interesDelDia = saldoPendiente.multiply(tasaDiariaOculta)
         
         // Redondear a 4 decimales
         interesDelDia = interesDelDia.setScale(4, RoundingMode.HALF_UP)
         
-        // Asegurar que el interés no sea negativo (puede pasar si el saldo es negativo)
+        // Asegurar que el interés no sea negativo
         if (interesDelDia.compareTo(BigDecimal.ZERO) < 0) {
             interesDelDia = BigDecimal.ZERO
         }
@@ -105,14 +166,22 @@ def crearCuotasPagoFlat = { ProcessInfo pi, MInvoice invoice, GenericPO cartera,
             capitalDelDia = BigDecimal.ZERO
         }
         
-        // Si el capital a pagar excede el saldo pendiente, ajustar para última cuota
-        // Importante: NO recalcular el interés, solo ajustar el capital
-        if (capitalDelDia.compareTo(saldoPendiente) > 0) {
+        // Ajuste especial para el último día: pagar todo el saldo restante
+        if (i == numCuotas - 1) {
+            // Recalcular interés del último día basado en saldo actual
+            interesDelDia = saldoPendiente.multiply(tasaDiariaOculta)
+            interesDelDia = interesDelDia.setScale(4, RoundingMode.HALF_UP)
+            // Pagar todo el saldo restante como capital
+            // Nota: La cuota del último día será interesDelDia + capitalDelDia (saldo completo)
             capitalDelDia = saldoPendiente
-            // El interés ya está correctamente calculado, no lo recalculamos
+        } else {
+            // Si el capital a pagar excede el saldo pendiente en días intermedios, ajustar
+            if (capitalDelDia.compareTo(saldoPendiente) > 0) {
+                capitalDelDia = saldoPendiente
+            }
         }
         
-        // Actualizar saldo pendiente (asegurar que no sea negativo)
+        // Actualizar saldo pendiente
         saldoPendiente = saldoPendiente.subtract(capitalDelDia)
         if (saldoPendiente.compareTo(BigDecimal.ZERO) < 0) {
             saldoPendiente = BigDecimal.ZERO
@@ -221,6 +290,13 @@ try {
             car.save(trxName)
 
             crearCuotasPagoFlat(A_ProcessInfo, invoice, car, cantidadCuotas, montoTotal)
+            
+            // Actualizar campos calculados de legacy_cartera con valores correctos
+            BigDecimal cuotaNivelada = montoTotal.divide(BigDecimal.valueOf(cantidadCuotas), 4, RoundingMode.HALF_UP)
+            car.set_ValueOfColumn('valorinteres', interesCalculado)
+            car.set_ValueOfColumn('cuota', cuotaNivelada)
+            car.set_ValueOfColumn('montototal', montoTotal)
+            car.save(trxName)
 
             trx.commit()
             A_ProcessInfo.addLog(0,null,null,"✔️ [${workNumber}] OK: Cartera ${carteraId} procesada.")
