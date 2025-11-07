@@ -184,11 +184,12 @@ try {
                 A_ProcessInfo.addLog(0,null,null,"⏭️ [${workNumber}] Se omite Cartera ID ${carteraId}: Datos del crédito incompletos.")
                 skippedCount++; trx.close(); continue
             }
-            // Calcular montoTotal usando la fórmula: monto × tasa × 12 × cantidadCuotas / 360
-            BigDecimal montoTotal = monto.multiply(tasa)
+            // Calcular montoTotal usando la fórmula: monto + (monto × tasa × 12 × cantidadCuotas / 360)
+            BigDecimal interesCalculado = monto.multiply(tasa)
                 .multiply(BigDecimal.valueOf(12))
                 .multiply(BigDecimal.valueOf(cantidadCuotas))
                 .divide(BigDecimal.valueOf(360), 4, RoundingMode.HALF_UP)
+            BigDecimal montoTotal = monto.add(interesCalculado)
 
             A_ProcessInfo.addLog(0,null,null,"⚙️ [${workNumber}] Procesando Cartera ID ${carteraId}...")
 
