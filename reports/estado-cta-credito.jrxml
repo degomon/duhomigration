@@ -1,0 +1,502 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Jaspersoft Studio version 6.21.2.final using JasperReports Library version 6.21.2-8434a0bd7c3bbc37cbf916f2968d35e4b165821a  -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="estado-cta-credito" language="groovy" pageWidth="792" pageHeight="612" orientation="Landscape" columnWidth="752" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="aaaa8d96-6303-4767-87b3-6c15fd67e9eb">
+	<property name="ireport.zoom" value="1.0"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<property name="com.jaspersoft.studio.data.defaultdataadapter" value="DUHO-PREPROD"/>
+	<property name="com.jaspersoft.studio.data.sql.tables" value=""/>
+	<property name="com.jaspersoft.studio.property.dataset.dialog.DatasetDialog.sash.w1" value="486"/>
+	<property name="com.jaspersoft.studio.property.dataset.dialog.DatasetDialog.sash.w2" value="503"/>
+	<parameter name="RECORD_ID" class="java.lang.Integer"/>
+	<parameter name="AD_PINSTANCE_ID" class="java.lang.Integer"/>
+	<queryString language="plsql">
+		<![CDATA[WITH tenant AS (
+  SELECT
+    conf.value::json ->> 'logo-url' AS logourl,
+    conf.value::json ->> 'company-name' AS companyname
+  FROM
+    ad_pinstance pin
+    INNER JOIN ad_client cli ON pin.ad_client_id = cli.ad_client_id
+    INNER JOIN ad_sysconfig conf ON cli.ad_client_id = conf.ad_client_id
+      AND conf.name = 'DEVM_CONF'
+  WHERE
+    pin.ad_pinstance_id = $P{AD_PINSTANCE_ID}
+),
+cartera_info AS (
+  -- Información básica del crédito
+  SELECT
+    car.legacy_cartera_id,
+    car.c_bpartner_id,
+    car.fecha,
+    car.montototal,
+    car.local_id AS invoice_id_capital,
+    bp.value AS codigo_cliente,
+    bp.name AS nombre_cliente
+  FROM
+    legacy_cartera car
+    INNER JOIN c_bpartner bp ON car.c_bpartner_id = bp.c_bpartner_id
+  WHERE
+    car.legacy_cartera_id = $P{RECORD_ID}
+),
+facturas_credito AS (
+  -- Obtener todas las facturas (CxC) relacionadas a este crédito
+  -- Factura de capital (c_doctype_id = 1000048)
+  SELECT
+    ci.invoice_id_capital AS c_invoice_id,
+    1000048 AS c_doctype_id,
+    'Capital' AS tipo_factura
+  FROM
+    cartera_info ci
+  WHERE
+    ci.invoice_id_capital IS NOT NULL
+  UNION ALL
+  -- Facturas de interés (c_doctype_id = 1000051) desde legacy_schedule
+  SELECT
+    ls.ref_invoice_id AS c_invoice_id,
+    1000051 AS c_doctype_id,
+    'Interés' AS tipo_factura
+  FROM
+    legacy_schedule ls
+    INNER JOIN cartera_info ci ON ls.legacy_cartera_id = ci.legacy_cartera_id
+  WHERE
+    ls.ref_invoice_id IS NOT NULL
+    AND ls.processed = 'Y'
+),
+factura_capital AS (
+  -- Registro de la factura de capital (débito)
+  SELECT
+  	0 as ordenpresentacion,
+    ci.legacy_cartera_id,
+    COALESCE(inv.dateinvoiced::date, ci.fecha::date) AS fecha_movimiento,
+    COALESCE(inv.documentno, 'CAPITAL-' || ci.legacy_cartera_id::varchar) AS documento,
+    'CxC Capital' AS concepto,
+    COALESCE(inv.grandtotal, ci.montototal) AS debito,
+    0.00::numeric AS credito,
+    0.00::numeric AS asignado_interes,
+    0.00::numeric AS asignado_principal,
+    COALESCE(inv.created, ci.fecha) AS created,
+    'capital' AS tipo_movimiento
+  FROM
+    cartera_info ci
+    LEFT JOIN c_invoice inv ON ci.invoice_id_capital = inv.c_invoice_id
+),
+facturas_interes AS (
+  -- Registros de facturas de interés (débitos)
+  SELECT
+  	100 as ordenpresentacion,
+    ls.legacy_cartera_id,
+    inv.dateinvoiced::date AS fecha_movimiento,
+    inv.documentno AS documento,
+    'CxC Interés' AS concepto,
+    inv.grandtotal AS debito,
+    0.00::numeric AS credito,
+    0.00::numeric AS asignado_interes,
+    0.00::numeric AS asignado_principal,
+    inv.created,
+    'interes' AS tipo_movimiento
+  FROM
+    legacy_schedule ls
+    INNER JOIN cartera_info ci ON ls.legacy_cartera_id = ci.legacy_cartera_id
+    INNER JOIN c_invoice inv ON ls.ref_invoice_id = inv.c_invoice_id
+  WHERE
+    ls.ref_invoice_id IS NOT NULL
+    AND ls.processed = 'Y'
+    AND inv.c_doctype_id = 1000051
+),
+asignaciones_pago AS (
+  -- Pre-calcular las asignaciones de pagos SOLO para las facturas de este crédito
+  SELECT
+    al.c_payment_id,
+    fc.c_doctype_id,
+    SUM(al.amount) AS monto_asignado
+  FROM
+    c_allocationline al
+    INNER JOIN facturas_credito fc ON al.c_invoice_id = fc.c_invoice_id
+  WHERE
+    al.isactive = 'Y'
+  GROUP BY
+    al.c_payment_id,
+    fc.c_doctype_id
+),
+pagos AS (
+  -- Pagos realizados al crédito (créditos)
+  SELECT
+  	999 as ordenpresentacion,
+    cob.id_cartera AS legacy_cartera_id,
+    cob.operacion::date AS fecha_movimiento,
+    COALESCE((
+      SELECT
+        documentno
+      FROM c_payment pay
+      WHERE
+        pay.c_payment_id = cob.local_id), 'COBRO-' || cob.id_cobro::varchar) AS documento,
+    'Pago/Cobro' AS concepto,
+    0.00::numeric AS debito,
+    cob.abono AS credito,
+    -- Monto asignado a intereses (c_doctype_id = 1000051: CxC por Interés)
+    COALESCE(asig_int.monto_asignado, 0.00)::numeric AS asignado_interes,
+    -- Monto asignado a saldo principal (c_doctype_id = 1000048: CxC por Capital)
+    COALESCE(asig_prin.monto_asignado, 0.00)::numeric AS asignado_principal,
+    cob.created,
+    'pago' AS tipo_movimiento
+  FROM
+    legacy_cobro cob
+    LEFT JOIN asignaciones_pago asig_int ON asig_int.c_payment_id = cob.local_id
+      AND asig_int.c_doctype_id = 1000051
+    LEFT JOIN asignaciones_pago asig_prin ON asig_prin.c_payment_id = cob.local_id
+      AND asig_prin.c_doctype_id = 1000048
+  WHERE
+    cob.id_cartera = $P{RECORD_ID}
+    AND cob.abono > 0
+),
+todos_movimientos AS (
+  -- Unir todos los movimientos: capital, intereses y pagos
+  SELECT
+    *
+  FROM
+    factura_capital
+  UNION ALL
+  SELECT
+    *
+  FROM
+    facturas_interes
+  UNION ALL
+  SELECT
+    *
+  FROM
+    pagos)
+  -- Resultado final con totales acumulados
+  SELECT
+  	tm.ordenpresentacion,
+  	tm.legacy_cartera_id,
+    tm.fecha_movimiento,
+    tm.documento,
+    tm.concepto,
+    tm.debito,
+    tm.credito,
+    tm.asignado_interes,
+    tm.asignado_principal,
+    -- Saldo acumulado total
+    SUM(tm.debito - tm.credito) OVER (ORDER BY tm.fecha_movimiento, tm.created) AS saldo,
+    -- Saldo acumulado de capital
+    SUM(
+      CASE WHEN tm.tipo_movimiento = 'capital' THEN
+        tm.debito
+      WHEN tm.tipo_movimiento = 'pago' THEN
+        - tm.asignado_principal
+      ELSE
+        0.00::numeric
+      END) OVER (ORDER BY tm.fecha_movimiento, tm.created) AS saldo_capital,
+    -- Saldo acumulado de interés
+    SUM(
+      CASE WHEN tm.tipo_movimiento = 'interes' THEN
+        tm.debito
+      WHEN tm.tipo_movimiento = 'pago' THEN
+        - tm.asignado_interes
+      ELSE
+        0.00::numeric
+      END) OVER (ORDER BY tm.fecha_movimiento, tm.created) AS saldo_interes,
+    ci.codigo_cliente,
+    ci.nombre_cliente,
+    te.logourl,
+    te.companyname
+  FROM
+    todos_movimientos tm
+  CROSS JOIN cartera_info ci
+  CROSS JOIN tenant te
+ORDER BY
+  tm.fecha_movimiento asc,
+  tm.ordenpresentacion asc,
+  tm.created asc]]>
+	</queryString>
+	<field name="legacy_cartera_id" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="legacy_cartera_id"/>
+		<property name="com.jaspersoft.studio.field.label" value="legacy_cartera_id"/>
+	</field>
+	<field name="fecha_movimiento" class="java.sql.Date">
+		<property name="com.jaspersoft.studio.field.name" value="fecha_movimiento"/>
+		<property name="com.jaspersoft.studio.field.label" value="fecha_movimiento"/>
+	</field>
+	<field name="documento" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="documento"/>
+		<property name="com.jaspersoft.studio.field.label" value="documento"/>
+	</field>
+	<field name="concepto" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="concepto"/>
+		<property name="com.jaspersoft.studio.field.label" value="concepto"/>
+	</field>
+	<field name="debito" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="debito"/>
+		<property name="com.jaspersoft.studio.field.label" value="debito"/>
+	</field>
+	<field name="credito" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="credito"/>
+		<property name="com.jaspersoft.studio.field.label" value="credito"/>
+	</field>
+	<field name="asignado_interes" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="asignado_interes"/>
+		<property name="com.jaspersoft.studio.field.label" value="asignado_interes"/>
+	</field>
+	<field name="asignado_principal" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="asignado_principal"/>
+		<property name="com.jaspersoft.studio.field.label" value="asignado_principal"/>
+	</field>
+	<field name="saldo" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="saldo"/>
+		<property name="com.jaspersoft.studio.field.label" value="saldo"/>
+	</field>
+	<field name="saldo_capital" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="saldo_capital"/>
+		<property name="com.jaspersoft.studio.field.label" value="saldo_capital"/>
+	</field>
+	<field name="saldo_interes" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="saldo_interes"/>
+		<property name="com.jaspersoft.studio.field.label" value="saldo_interes"/>
+	</field>
+	<field name="codigo_cliente" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="codigo_cliente"/>
+		<property name="com.jaspersoft.studio.field.label" value="codigo_cliente"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="c_bpartner"/>
+	</field>
+	<field name="nombre_cliente" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="nombre_cliente"/>
+		<property name="com.jaspersoft.studio.field.label" value="nombre_cliente"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="c_bpartner"/>
+	</field>
+	<field name="logourl" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="logourl"/>
+		<property name="com.jaspersoft.studio.field.label" value="logourl"/>
+	</field>
+	<field name="companyname" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="companyname"/>
+		<property name="com.jaspersoft.studio.field.label" value="companyname"/>
+	</field>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="72" splitType="Stretch">
+			<textField>
+				<reportElement x="0" y="0" width="772" height="15" uuid="5cc4d76e-a275-456e-a21c-505e75f5a8e1">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement>
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{companyname}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="0" y="20" width="772" height="15" uuid="5f9b6323-1117-43f4-a422-863194e5d704">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement>
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Estado de Cuenta del Crédito - ID del Crédito: " + $F{legacy_cartera_id}.toString()]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="0" y="40" width="772" height="15" uuid="2970075c-cb76-4c86-9e25-1699db64121f">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement>
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{codigo_cliente} + " - " + $F{nombre_cliente}]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<columnHeader>
+		<band height="23" splitType="Stretch">
+			<staticText>
+				<reportElement x="0" y="0" width="77" height="23" uuid="c4500624-aa81-423c-b41c-cd70508a2a6e">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="2bdbe7cc-1c5a-4c90-8bc4-227cfdc58086"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Fecha Mov.]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="77" y="0" width="75" height="23" uuid="547d77d0-7d84-4bc8-a5bf-bb5cd7c123ee">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="edde55a7-b4e7-434e-8fa2-7987850ca34e"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Documento]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="152" y="0" width="75" height="23" uuid="87ad8d1b-499b-4887-a835-1cd649cb36b1">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="2ceb253a-cc93-47cc-9f78-533a34d5b5f2"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Concepto]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="227" y="0" width="75" height="23" uuid="b6447afb-8797-4bb7-959d-c55e9850df5b">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="a8e4a7ea-e7af-4ab5-958d-7d30f28cfe3f"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Débito]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="302" y="0" width="75" height="23" uuid="db8c25f6-42d2-4c58-964e-116d317ab6b1">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="da5b02ed-4bdf-4f98-9576-bd67547fb727"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Crédito]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="377" y="0" width="75" height="23" uuid="c34232ff-48a5-47f2-b82e-62441293a659">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="327f561c-32ef-4679-ae13-c01638aa881e"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Apl. Interés]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="452" y="0" width="75" height="23" uuid="886ff144-8330-41cf-aae8-a95f099fec8f">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="6f425686-ada2-43c2-a068-f078cb5c7450"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Apl. Capital]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="527" y="0" width="75" height="23" uuid="3fa95338-c1bc-4e9d-ac4e-8e67aa9e1ac4">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="42a6a79a-d355-4bcd-923e-728dec9d82f7"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Saldo]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="602" y="0" width="75" height="23" uuid="19a54713-478a-443a-a103-40f1ee8ce06d">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="a7cc1d96-c795-422a-b6f5-f5a2d5a78f65"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Saldo Capital]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="677" y="0" width="75" height="23" uuid="0ace8b72-b93c-456d-88e6-92b10ea51012">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="9631fd62-657a-457a-980c-815f162fc6d6"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Saldo Interés]]></text>
+			</staticText>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="14" splitType="Stretch">
+			<property name="com.jaspersoft.studio.unit.height" value="px"/>
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="0" y="0" width="77" height="14" uuid="6222568c-827e-4fb8-8796-3f6dd00be493">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="2bdbe7cc-1c5a-4c90-8bc4-227cfdc58086"/>
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement>
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{fecha_movimiento}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="77" y="0" width="75" height="14" uuid="fa0cf560-6364-4417-b074-a130ea337d1e">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="edde55a7-b4e7-434e-8fa2-7987850ca34e"/>
+				</reportElement>
+				<textElement>
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{documento}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="152" y="0" width="75" height="14" uuid="6d801bf3-62b5-4f2a-abb0-106a2bbb36e1">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="2ceb253a-cc93-47cc-9f78-533a34d5b5f2"/>
+				</reportElement>
+				<textElement>
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{concepto}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00#;#,##0.00#-">
+				<reportElement x="227" y="0" width="75" height="14" uuid="752981cd-4918-4d16-bcf5-2cef23bafa03">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="a8e4a7ea-e7af-4ab5-958d-7d30f28cfe3f"/>
+				</reportElement>
+				<textElement textAlignment="Right">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{debito}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00#;#,##0.00#-">
+				<reportElement x="302" y="0" width="75" height="14" uuid="59399cf9-62d9-475b-8836-cd4e51d6d6d5">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="da5b02ed-4bdf-4f98-9576-bd67547fb727"/>
+				</reportElement>
+				<textElement textAlignment="Right">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{credito}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00#;#,##0.00#-">
+				<reportElement x="377" y="0" width="75" height="14" uuid="f9735639-8230-4a6c-9c81-9904e98fc9cf">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="327f561c-32ef-4679-ae13-c01638aa881e"/>
+				</reportElement>
+				<textElement textAlignment="Right">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{asignado_interes}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00#;#,##0.00#-">
+				<reportElement x="452" y="0" width="75" height="14" uuid="5c128089-14f4-4b14-b48c-b56228b1535a">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="6f425686-ada2-43c2-a068-f078cb5c7450"/>
+				</reportElement>
+				<textElement textAlignment="Right">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{asignado_principal}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00#;#,##0.00#-">
+				<reportElement x="527" y="0" width="75" height="14" uuid="213c9fe5-13c7-45cd-9e23-ead6ca3bc3bf">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="42a6a79a-d355-4bcd-923e-728dec9d82f7"/>
+				</reportElement>
+				<textElement textAlignment="Right">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{saldo}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00#;#,##0.00#-">
+				<reportElement x="602" y="0" width="75" height="14" uuid="4021ae4b-7432-4b73-bbdf-d120c064cd0f">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="a7cc1d96-c795-422a-b6f5-f5a2d5a78f65"/>
+				</reportElement>
+				<textElement textAlignment="Right">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{saldo_capital}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00#;#,##0.00#-">
+				<reportElement x="677" y="0" width="75" height="14" uuid="154953df-9e47-434d-bd35-99cdaee6d4ed">
+					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="9631fd62-657a-457a-980c-815f162fc6d6"/>
+				</reportElement>
+				<textElement textAlignment="Right">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{saldo_interes}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<summary>
+		<band height="44" splitType="Stretch"/>
+	</summary>
+</jasperReport>

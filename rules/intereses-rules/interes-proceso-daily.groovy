@@ -170,6 +170,7 @@ boolean recalcularCuotasDesdeCapital(int carteraID, BigDecimal saldoCapital, Tim
               AND (Processed IS NULL OR Processed = 'N') 
               AND IsActive = 'Y'
               AND DueDate >= ?
+              AND AD_Org_ID=1000020
             ORDER BY DueDate ASC
         """;
         
@@ -285,7 +286,7 @@ boolean recalcularCuotasDesdeCapital(int carteraID, BigDecimal saldoCapital, Tim
 
 List<Integer> getPendingScheduleIDs(Timestamp processDate) {
     List<Integer> idList = new ArrayList<Integer>();
-    String baseSql = "SELECT legacy_schedule_id FROM legacy_schedule WHERE TRUNC(DueDate) = ? AND (Processed IS NULL OR Processed = 'N') AND IsActive = 'Y' ORDER BY Created DESC";
+    String baseSql = "SELECT legacy_schedule_id FROM legacy_schedule WHERE TRUNC(DueDate) = ? AND (Processed IS NULL OR Processed = 'N') AND IsActive = 'Y' AND AD_Org_ID=1000020 ORDER BY Created DESC";
     String sql;
     final int RECORD_LIMIT = 100;
 
