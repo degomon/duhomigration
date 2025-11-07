@@ -290,6 +290,13 @@ try {
             car.save(trxName)
 
             crearCuotasPagoFlat(A_ProcessInfo, invoice, car, cantidadCuotas, montoTotal)
+            
+            // Actualizar campos calculados de legacy_cartera con valores correctos
+            BigDecimal cuotaNivelada = montoTotal.divide(BigDecimal.valueOf(cantidadCuotas), 4, RoundingMode.HALF_UP)
+            car.set_ValueOfColumn('valorinteres', interesCalculado)
+            car.set_ValueOfColumn('cuota', cuotaNivelada)
+            car.set_ValueOfColumn('montototal', montoTotal)
+            car.save(trxName)
 
             trx.commit()
             A_ProcessInfo.addLog(0,null,null,"✔️ [${workNumber}] OK: Cartera ${carteraId} procesada.")
