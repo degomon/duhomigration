@@ -7,7 +7,7 @@
  * Muestra:
  * - Fecha del movimiento
  * - Documento
- * - Débito (desembolsos)
+ * - Débito (desembolsos de capital y facturas de interés)
  * - Crédito (pagos)
  * - Para pagos (c_payment): distribución entre facturas de interés y saldo principal
  */
@@ -19,23 +19,45 @@ WITH cartera_info AS (
         car.c_bpartner_id,
         car.fecha,
         car.montototal,
-        car.local_id as invoice_id,
+        car.local_id as invoice_id_capital,
         bp.value as codigo_cliente,
         bp.name as nombre_cliente
     FROM legacy_cartera car
     INNER JOIN c_bpartner bp ON car.c_bpartner_id = bp.c_bpartner_id
     WHERE car.legacy_cartera_id = $P{legacy_cartera_id}
 ),
-desembolso AS (
-    -- Registro del desembolso inicial (débito)
+facturas_credito AS (
+    -- Obtener todas las facturas (CxC) relacionadas a este crédito
+    -- Factura de capital (c_doctype_id = 1000048)
+    SELECT 
+        ci.invoice_id_capital as c_invoice_id,
+        1000048 as c_doctype_id,
+        'Capital' as tipo_factura
+    FROM cartera_info ci
+    WHERE ci.invoice_id_capital IS NOT NULL
+    
+    UNION ALL
+    
+    -- Facturas de interés (c_doctype_id = 1000051) desde legacy_schedule
+    SELECT 
+        ls.ref_invoice_id as c_invoice_id,
+        1000051 as c_doctype_id,
+        'Interés' as tipo_factura
+    FROM legacy_schedule ls
+    INNER JOIN cartera_info ci ON ls.legacy_cartera_id = ci.legacy_cartera_id
+    WHERE ls.ref_invoice_id IS NOT NULL
+    AND ls.processed = 'Y'
+),
+factura_capital AS (
+    -- Registro de la factura de capital (débito)
     SELECT 
         ci.legacy_cartera_id,
         ci.fecha::date as fecha_movimiento,
         COALESCE(
-            (SELECT documentno FROM c_invoice inv WHERE inv.c_invoice_id = ci.invoice_id),
-            'DESEMB-' || ci.legacy_cartera_id::varchar
+            (SELECT documentno FROM c_invoice inv WHERE inv.c_invoice_id = ci.invoice_id_capital),
+            'CAPITAL-' || ci.legacy_cartera_id::varchar
         ) as documento,
-        'Desembolso' as concepto,
+        'CxC Capital' as concepto,
         ci.montototal as debito,
         0.00::numeric as credito,
         0.00::numeric as asignado_interes,
@@ -43,16 +65,35 @@ desembolso AS (
         ci.fecha as created
     FROM cartera_info ci
 ),
+facturas_interes AS (
+    -- Registros de facturas de interés (débitos)
+    SELECT 
+        ls.legacy_cartera_id,
+        inv.dateinvoiced::date as fecha_movimiento,
+        inv.documentno as documento,
+        'CxC Interés' as concepto,
+        inv.grandtotal as debito,
+        0.00::numeric as credito,
+        0.00::numeric as asignado_interes,
+        0.00::numeric as asignado_principal,
+        inv.created
+    FROM legacy_schedule ls
+    INNER JOIN cartera_info ci ON ls.legacy_cartera_id = ci.legacy_cartera_id
+    INNER JOIN c_invoice inv ON ls.ref_invoice_id = inv.c_invoice_id
+    WHERE ls.ref_invoice_id IS NOT NULL
+    AND ls.processed = 'Y'
+    AND inv.c_doctype_id = 1000051
+),
 asignaciones_pago AS (
-    -- Pre-calcular las asignaciones de pagos por tipo de documento para optimizar el query
+    -- Pre-calcular las asignaciones de pagos SOLO para las facturas de este crédito
     SELECT 
         al.c_payment_id,
         inv.c_doctype_id,
         SUM(al.amount) as monto_asignado
     FROM c_allocationline al
+    INNER JOIN facturas_credito fc ON al.c_invoice_id = fc.c_invoice_id
     INNER JOIN c_invoice inv ON al.c_invoice_id = inv.c_invoice_id
     WHERE al.isactive = 'Y'
-    AND inv.c_doctype_id IN (1000048, 1000051)  -- 1000048: CxC Capital, 1000051: CxC Interés
     GROUP BY al.c_payment_id, inv.c_doctype_id
 ),
 pagos AS (
@@ -81,8 +122,10 @@ pagos AS (
     AND cob.abono > 0
 ),
 todos_movimientos AS (
-    -- Unir desembolsos y pagos
-    SELECT * FROM desembolso
+    -- Unir todos los movimientos: capital, intereses y pagos
+    SELECT * FROM factura_capital
+    UNION ALL
+    SELECT * FROM facturas_interes
     UNION ALL
     SELECT * FROM pagos
 )
