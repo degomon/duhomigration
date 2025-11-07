@@ -95,6 +95,7 @@ List<MPayment> getUnallocatedPayments(Timestamp filterDate = null) {
             AND cal.C_Payment_ID IS NULL
             AND EXISTS (select 1 from tmp_invoice_open io where io.c_bpartner_id = pay.c_bpartner_id and io.dateinvoiced <= pay.dateacct)
             AND NOT EXISTS (select 1 from tmp_payment_omitidos om where om.c_payment_id = pay.c_payment_id and om.dateommited::date = now()::date)
+            AND pay.AD_Org_ID=1000020
     """;
     
     // Agregar filtro por fecha si se proporciona
