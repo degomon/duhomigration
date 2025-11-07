@@ -69,19 +69,15 @@ pagos AS (
         0.00::numeric as debito,
         cob.abono as credito,
         -- Monto asignado a intereses (c_charge_id = 1000029: Cargo por Intereses)
-        COALESCE(
-            (SELECT monto_asignado FROM asignaciones_pago 
-             WHERE c_payment_id = cob.local_id AND c_charge_id = 1000029),
-            0.00
-        )::numeric as asignado_interes,
+        COALESCE(asig_int.monto_asignado, 0.00)::numeric as asignado_interes,
         -- Monto asignado a saldo principal (c_charge_id = 1000028: Cargo por Capital/Principal)
-        COALESCE(
-            (SELECT monto_asignado FROM asignaciones_pago 
-             WHERE c_payment_id = cob.local_id AND c_charge_id = 1000028),
-            0.00
-        )::numeric as asignado_principal,
+        COALESCE(asig_prin.monto_asignado, 0.00)::numeric as asignado_principal,
         cob.created
     FROM legacy_cobro cob
+    LEFT JOIN asignaciones_pago asig_int 
+        ON asig_int.c_payment_id = cob.local_id AND asig_int.c_charge_id = 1000029
+    LEFT JOIN asignaciones_pago asig_prin 
+        ON asig_prin.c_payment_id = cob.local_id AND asig_prin.c_charge_id = 1000028
     WHERE cob.id_cartera = $P{legacy_cartera_id}
     AND cob.abono > 0
 ),
