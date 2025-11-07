@@ -1,9 +1,10 @@
 /**
  * InteresProcesoDaily
  * Proceso para generar facturas de interés basadas en el plan de pagos (legacy_schedule).
+ * 20251107 - modificado recálculo de cuotas para usar tasa oculta con interés total fijo
  * 20251106 - agregado recálculo de cuotas basado en saldo capital antes de generar facturas
  * 20250928 - agregamos ref_invoice_id a legacy_schedule para referencia futura
- * Versión: 20251106
+ * Versión: 20251107
  */
 
 import org.compiere.model.Query;
@@ -19,6 +20,7 @@ import org.compiere.process.ProcessInfoParameter;
 import groovy.transform.Field;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Timestamp;
 import java.util.logging.Level;
 import java.sql.PreparedStatement;
@@ -46,6 +48,66 @@ import java.sql.ResultSet;
 def logProcess(String message) {
     A_ProcessInfo.addLog(0, null, null, message);
     log.info(message);
+}
+
+/**
+ * Calcula la tasa diaria "oculta" que produce un interés total fijo exacto
+ * usando el método de interés sobre saldo con cuotas niveladas.
+ * 
+ * @param monto Capital del préstamo
+ * @param interesTotal Interés total deseado (fijo)
+ * @param numCuotas Número de cuotas/días
+ * @return Tasa diaria oculta que produce el interés total exacto
+ */
+BigDecimal calcularTasaOculta(BigDecimal monto, BigDecimal interesTotal, int numCuotas) {
+    if (monto.compareTo(BigDecimal.ZERO) <= 0 || interesTotal.compareTo(BigDecimal.ZERO) <= 0 || numCuotas <= 0) {
+        return BigDecimal.ZERO;
+    }
+    
+    BigDecimal pagoTotal = monto.add(interesTotal);
+    BigDecimal cuotaNivelada = pagoTotal.divide(BigDecimal.valueOf(numCuotas), 10, RoundingMode.HALF_UP);
+    
+    // Búsqueda binaria de la tasa diaria
+    // Rango típico: 0.1% a 2% diario (0.001 - 0.020)
+    BigDecimal tasaMin = BigDecimal.valueOf(0.001);
+    BigDecimal tasaMax = BigDecimal.valueOf(0.020);
+    BigDecimal tolerancia = BigDecimal.valueOf(0.0001);
+    int maxIteraciones = 1000;
+    
+    for (int iter = 0; iter < maxIteraciones; iter++) {
+        BigDecimal tasaDiaria = tasaMin.add(tasaMax).divide(BigDecimal.valueOf(2), 10, RoundingMode.HALF_UP);
+        
+        BigDecimal saldo = monto;
+        BigDecimal totalInteresCalculado = BigDecimal.ZERO;
+        
+        // Calcular interés total con esta tasa (días 1 a numCuotas-1)
+        for (int dia = 1; dia < numCuotas; dia++) {
+            BigDecimal interes = saldo.multiply(tasaDiaria);
+            BigDecimal capital = cuotaNivelada.subtract(interes);
+            saldo = saldo.subtract(capital);
+            totalInteresCalculado = totalInteresCalculado.add(interes);
+        }
+        
+        // Último día: interés sobre saldo restante
+        BigDecimal interesUltimoDia = saldo.multiply(tasaDiaria);
+        totalInteresCalculado = totalInteresCalculado.add(interesUltimoDia);
+        
+        // Verificar convergencia
+        BigDecimal diferencia = totalInteresCalculado.subtract(interesTotal).abs();
+        if (diferencia.compareTo(tolerancia) < 0) {
+            return tasaDiaria;
+        }
+        
+        // Ajustar rango de búsqueda
+        if (totalInteresCalculado.compareTo(interesTotal) < 0) {
+            tasaMin = tasaDiaria;
+        } else {
+            tasaMax = tasaDiaria;
+        }
+    }
+    
+    // Si no converge, retornar el valor actual
+    return tasaMin.add(tasaMax).divide(BigDecimal.valueOf(2), 10, RoundingMode.HALF_UP);
 }
 
 /**
@@ -77,7 +139,7 @@ BigDecimal getSaldoCapital(int capitalInvoiceID, Timestamp processDate) {
 
 /**
  * Recalcula las cuotas pendientes de una cartera basándose en el saldo capital actual.
- * Similar al método crearCuotasPagoFlat pero calculando desde el saldo capital remanente.
+ * Usa el método de tasa oculta para garantizar que el interés total sea exacto.
  * 
  * @param carteraID ID de la cartera (legacy_cartera_id)
  * @param saldoCapital Saldo de capital pendiente a la fecha del proceso
@@ -96,9 +158,9 @@ boolean recalcularCuotasDesdeCapital(int carteraID, BigDecimal saldoCapital, Tim
             return false;
         }
         
-        // Obtener la tasa mensual y calcular tasa diaria
-        BigDecimal tasaMensual = cartera.get_Value('tasa') ?: BigDecimal.ZERO;
-        BigDecimal tasaDiaria = tasaMensual.divide(BigDecimal.valueOf(30), 10, java.math.RoundingMode.HALF_UP);
+        // Obtener valores de la cartera
+        BigDecimal montoOriginal = cartera.get_Value('monto') ?: BigDecimal.ZERO;
+        BigDecimal valorInteresTotal = cartera.get_Value('valorinteres') ?: BigDecimal.ZERO;
         
         // Obtener cuotas pendientes de esta cartera ordenadas por fecha de vencimiento
         String sqlPendientes = """
@@ -139,27 +201,34 @@ boolean recalcularCuotasDesdeCapital(int carteraID, BigDecimal saldoCapital, Tim
         
         int numCuotas = cuotasPendientes.size();
         
-        // Calcular monto total de cuotas pendientes (capital + interés estimado)
-        // NOTA: Esta es una estimación simplificada para calcular la cuota fija.
-        // El interés real se calcula precisamente en el bucle sobre saldo decreciente.
-        // Estimación: interés ≈ saldoCapital × tasaDiaria × numCuotas
-        // Esta aproximación es suficiente porque el interés se ajusta en cada iteración.
-        BigDecimal interesEstimado = saldoCapital.multiply(tasaDiaria).multiply(BigDecimal.valueOf(numCuotas));
-        BigDecimal montoTotalEstimado = saldoCapital.add(interesEstimado);
+        // Calcular el interés proporcional que corresponde a las cuotas pendientes
+        // Proporción = saldoCapital / montoOriginal
+        BigDecimal proporcion = BigDecimal.ZERO;
+        if (montoOriginal.compareTo(BigDecimal.ZERO) > 0) {
+            proporcion = saldoCapital.divide(montoOriginal, 10, RoundingMode.HALF_UP);
+        }
         
-        // Calcular cuota fija
-        BigDecimal cuotaTotal = montoTotalEstimado.divide(BigDecimal.valueOf(numCuotas), 4, java.math.RoundingMode.HALF_UP);
+        // Interés total para las cuotas pendientes
+        BigDecimal interesTotalPendiente = valorInteresTotal.multiply(proporcion);
+        
+        // Calcular la tasa diaria oculta que produce exactamente este interés
+        BigDecimal tasaDiariaOculta = calcularTasaOculta(saldoCapital, interesTotalPendiente, numCuotas);
+        
+        // Calcular monto total y cuota nivelada
+        BigDecimal montoTotal = saldoCapital.add(interesTotalPendiente);
+        BigDecimal cuotaTotal = montoTotal.divide(BigDecimal.valueOf(numCuotas), 4, RoundingMode.HALF_UP);
         BigDecimal saldoPendiente = saldoCapital;
         
-        logProcess("♻️ Recalculando ${numCuotas} cuotas para cartera ID ${carteraID}. Saldo capital: ${saldoCapital}, Tasa diaria: ${tasaDiaria}");
+        logProcess("♻️ Recalculando ${numCuotas} cuotas para cartera ID ${carteraID}. Saldo capital: ${saldoCapital}, Interés pendiente: ${interesTotalPendiente}, Tasa oculta: ${tasaDiariaOculta}");
         
-        // Recalcular cada cuota
+        // Recalcular cada cuota usando la tasa oculta
+        int cuotaIndex = 0;
         for (Map<String, Object> cuotaData : cuotasPendientes) {
             int scheduleID = (int) cuotaData.get("id");
             
-            // Calcular interés del día basado en saldo pendiente
-            BigDecimal interesDelDia = saldoPendiente.multiply(tasaDiaria);
-            interesDelDia = interesDelDia.setScale(4, java.math.RoundingMode.HALF_UP);
+            // Calcular interés del día basado en saldo pendiente usando la tasa oculta
+            BigDecimal interesDelDia = saldoPendiente.multiply(tasaDiariaOculta);
+            interesDelDia = interesDelDia.setScale(4, RoundingMode.HALF_UP);
             
             // Asegurar que el interés no sea negativo
             if (interesDelDia.compareTo(BigDecimal.ZERO) < 0) {
@@ -176,9 +245,18 @@ boolean recalcularCuotasDesdeCapital(int carteraID, BigDecimal saldoCapital, Tim
                 capitalDelDia = BigDecimal.ZERO;
             }
             
-            // Si el capital a pagar excede el saldo pendiente, ajustar para última cuota
-            if (capitalDelDia.compareTo(saldoPendiente) > 0) {
+            // Ajuste especial para el último día: pagar todo el saldo restante
+            if (cuotaIndex == numCuotas - 1) {
+                // Recalcular interés del último día basado en saldo actual
+                interesDelDia = saldoPendiente.multiply(tasaDiariaOculta);
+                interesDelDia = interesDelDia.setScale(4, RoundingMode.HALF_UP);
+                // Pagar todo el saldo restante como capital
                 capitalDelDia = saldoPendiente;
+            } else {
+                // Si el capital a pagar excede el saldo pendiente en días intermedios, ajustar
+                if (capitalDelDia.compareTo(saldoPendiente) > 0) {
+                    capitalDelDia = saldoPendiente;
+                }
             }
             
             // Actualizar saldo pendiente
@@ -190,6 +268,8 @@ boolean recalcularCuotasDesdeCapital(int carteraID, BigDecimal saldoCapital, Tim
             // Actualizar la cuota en la base de datos
             String updateSQL = "UPDATE legacy_schedule SET DueAmt = ? WHERE legacy_schedule_id = ?";
             DB.executeUpdate(updateSQL, new Object[]{interesDelDia, scheduleID}, false, A_TrxName);
+            
+            cuotaIndex++;
         }
         
         logProcess("✅ Recalculadas ${numCuotas} cuotas para cartera ID ${carteraID}.");
